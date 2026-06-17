@@ -19,8 +19,8 @@
   --yellow: var(--palette-lemon);
   --gray: #c4a66a;
   --gray-key: var(--palette-pale-gold);
-  --green-key: var(--palette-orange);
-  --yellow-key: color-mix(in srgb, var(--palette-lemon) 48%, var(--gray-key));
+  --green-key: var(--green);
+  --yellow-key: var(--yellow);
   --error: #d64500;
   --mutation-glow: var(--palette-amber);
   --title-color: var(--palette-amber);
@@ -46,8 +46,8 @@
   --yellow: var(--palette-lemon);
   --gray: #5c4a2a;
   --gray-key: #3d3020;
-  --green-key: var(--palette-orange);
-  --yellow-key: color-mix(in srgb, var(--palette-amber) 36%, var(--gray-key));
+  --green-key: var(--green);
+  --yellow-key: var(--yellow);
   --error: #ff7900;
   --mutation-glow: var(--palette-lemon);
   --title-color: var(--palette-lemon);
@@ -101,10 +101,20 @@
     + 2 * var(--grid-scroll-pad-y)
   );
   --font: "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-title: "Titan One", cursive, sans-serif;
-  --app-max-width: min(100%, 520px);
+  --font-title: "Fredoka", cursive, sans-serif;
+  --app-max-width: min(100%, 540px);
   --error-slot-height: 1.35rem;
-  --board-width: calc(5 * var(--tile-size) + 4 * var(--tile-gap));
+  --row-label-space: calc(0.75rem + clamp(4px, 0.45vw, 7px));
+  --tiles-width: calc(5 * var(--tile-size) + 4 * var(--tile-gap));
+  --grid-scrollbar-size: 12px;
+  /* Include row labels, tiles, inner padding, and scrollbar so nothing clips. */
+  --board-width: calc(
+    var(--row-label-space)
+    + var(--tiles-width)
+    + 2 * var(--grid-scroll-pad-x)
+    + var(--grid-scrollbar-size)
+    + 6px
+  );
 }
 
 *,
@@ -115,6 +125,8 @@
 
 html {
   height: 100%;
+  background: var(--bg);
+  color-scheme: light dark;
 }
 
 body {
@@ -210,6 +222,7 @@ body {
 .title-row {
   margin: 0;
   font-family: var(--font-title);
+  font-weight: 500;
   font-size: clamp(1.55rem, 5vw, 2.2rem);
   letter-spacing: 0.02em;
   text-transform: none;
@@ -275,6 +288,18 @@ h1 {
   margin-bottom: 0;
 }
 
+.known-state-wrap .known-state-row {
+  flex: 0 0 var(--tiles-width);
+  width: var(--tiles-width);
+  max-width: var(--tiles-width);
+  justify-content: center;
+}
+
+.row-number-spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .known-state-row .tile {
   border-style: dashed;
   color: var(--text-muted);
@@ -338,6 +363,8 @@ h1 {
   overflow-y: auto;
   overflow-x: hidden;
   overflow-anchor: none;
+  scrollbar-gutter: stable;
+  box-sizing: border-box;
   padding: var(--grid-scroll-pad-y) var(--grid-scroll-pad-x);
   margin-bottom: 4px;
   border: 1px solid var(--palette-amber);
@@ -378,7 +405,37 @@ h1 {
   width: 100%;
 }
 
+.grid-row-wrap {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 0.45vw, 7px);
+  width: 100%;
+  min-width: 0;
+}
+
+.row-number {
+  flex: 0 0 0.75rem;
+  width: 0.75rem;
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.35;
+  text-align: right;
+  line-height: 1;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-row-wrap .row {
+  flex: 0 0 var(--tiles-width);
+  width: var(--tiles-width);
+  max-width: var(--tiles-width);
+  min-width: var(--tiles-width);
+  justify-content: center;
+}
+
 .tile {
+  flex-shrink: 0;
   width: var(--tile-size);
   height: var(--tile-size);
   border: 2px solid var(--border);
@@ -483,11 +540,11 @@ h1 {
   100% { background: var(--gray-key); }
 }
 
-.key.key-fade-gray {
-  animation: gray-fade 0.4s ease forwards;
+.key.key-fade-absent {
+  animation: absent-fade 0.4s ease forwards;
 }
 
-@keyframes gray-fade {
+@keyframes absent-fade {
   0% { background: var(--gray); color: var(--key-text-on-gray); }
   100% { background: var(--gray-key); color: var(--text); }
 }
@@ -517,12 +574,13 @@ h1 {
   color: var(--tile-text-on-color);
 }
 
+.key.absent,
 .key.gray {
   background: var(--gray);
   color: var(--key-text-on-gray);
 }
 
-/* Recent guess: ring glow only — keep green/yellow/gray underneath visible */
+/* Recent guess: ring glow only — keep feedback colors underneath visible */
 .key.key-recent {
   outline: 2px solid var(--key-recent-ring);
   outline-offset: 1px;
@@ -531,6 +589,7 @@ h1 {
 
 .key.key-recent.green,
 .key.key-recent.yellow,
+.key.key-recent.absent,
 .key.key-recent.gray {
   outline: 2px solid var(--key-recent-ring);
   outline-offset: 1px;
@@ -697,6 +756,7 @@ h1 {
 .help-panel-inner h2 {
   margin: 0 0 16px;
   font-family: var(--font-title);
+  font-weight: 500;
   color: var(--title-color);
 }
 
@@ -752,6 +812,10 @@ h1 {
 .legend-box.correct { background: var(--green); }
 .legend-box.present { background: var(--yellow); }
 .legend-box.absent { background: var(--gray); }
+.legend-box.recent-key {
+  background: var(--gray-key);
+  box-shadow: 0 0 0 2px var(--key-recent-ring);
+}
 
 /* ==========================================================================
    Responsive tweaks

@@ -23,6 +23,7 @@ const FEEDBACK_LABELS = {
   green: "correct",
   yellow: "present",
   gray: "absent",
+  absent: "not in word on last guess",
 };
 
 /** Wordle-style priority when merging letter colors (higher wins). */
@@ -214,6 +215,14 @@ function createTile(className = "") {
 function buildGrid() {
   gridEl.innerHTML = "";
   for (let r = 0; r < MAX_ROWS; r++) {
+    const wrap = document.createElement("div");
+    wrap.className = "grid-row-wrap";
+
+    const rowNumber = document.createElement("span");
+    rowNumber.className = "row-number";
+    rowNumber.textContent = String(r + 1);
+    rowNumber.setAttribute("aria-hidden", "true");
+
     const row = document.createElement("div");
     row.className = "row";
     row.setAttribute("role", "row");
@@ -221,8 +230,16 @@ function buildGrid() {
     for (let c = 0; c < WORD_LENGTH; c++) {
       row.appendChild(createTile());
     }
-    gridEl.appendChild(row);
+
+    wrap.appendChild(rowNumber);
+    wrap.appendChild(row);
+    gridEl.appendChild(wrap);
   }
+}
+
+/** Return the row element for a guess index. */
+function getRowElement(rowIndex) {
+  return gridEl.querySelector(`.row[data-row="${rowIndex}"]`);
 }
 
 /** Row position inside the scroll container (content coordinates). */
@@ -258,8 +275,8 @@ function scrollToCurrentRow() {
       return;
     }
 
-    const prevRowEl = gridEl.querySelector(`[data-row="${currentRow - 1}"]`);
-    const currentRowEl = gridEl.querySelector(`[data-row="${currentRow}"]`);
+    const prevRowEl = getRowElement(currentRow - 1);
+    const currentRowEl = getRowElement(currentRow);
     if (!currentRowEl || gridScrollEl.clientHeight <= 0) return;
 
     const style = getComputedStyle(gridScrollEl);
@@ -336,7 +353,7 @@ function buildKeyboard() {
 
 /** Return the five tile elements for a guess row index. */
 function getRowTiles(rowIndex) {
-  return gridEl.querySelector(`[data-row="${rowIndex}"]`).children;
+  return getRowElement(rowIndex).children;
 }
 
 /* ==========================================================================
@@ -421,7 +438,7 @@ function getTileColor(tile) {
 /** Build letter → color map from a single submitted row. */
 function buildKeyboardStateFromRow(rowIndex) {
   const state = {};
-  const rowEl = gridEl.querySelector(`[data-row="${rowIndex}"]`);
+  const rowEl = getRowElement(rowIndex);
   if (!rowEl) return state;
   const tiles = rowEl.children;
   for (let i = 0; i < WORD_LENGTH; i++) {
@@ -452,18 +469,18 @@ function buildFinalKeyboardState(serverState = {}) {
     }
   }
 
-  // Gray applies only to letters absent in the most recent guess.
+  // Temporary "not in word" on keyboard only (distinct from tile gray).
   const latestRow = buildKeyboardStateFromRow(currentRow);
   for (const [letter, color] of Object.entries(latestRow)) {
     if (color === "gray" && final[letter] !== "green" && final[letter] !== "yellow") {
-      final[letter] = "gray";
+      final[letter] = "absent";
     }
   }
 
-  // After a mutation, downgrade stale yellows when the server rescored them gray.
+  // After a mutation, downgrade stale yellows when the server rescored them absent.
   for (const [letter, serverColor] of Object.entries(serverState)) {
     if (final[letter] === "yellow" && serverColor === "gray") {
-      final[letter] = "gray";
+      final[letter] = "absent";
     }
   }
 
@@ -474,6 +491,7 @@ function buildFinalKeyboardState(serverState = {}) {
 function getKeyColor(keyEl) {
   if (keyEl.classList.contains("green")) return "green";
   if (keyEl.classList.contains("yellow")) return "yellow";
+  if (keyEl.classList.contains("absent")) return "absent";
   if (keyEl.classList.contains("gray")) return "gray";
   return null;
 }
@@ -501,14 +519,15 @@ function paintKeyboard(state, options = {}) {
     const shouldFadeYellow =
       staleSet.has(letter) && prev === "yellow" && next !== "yellow" && next !== "green";
     const shouldFadeAbsent =
-      fadeAbsentSet.has(letter) && prev === "gray" && next !== "gray";
+      fadeAbsentSet.has(letter) && prev === "absent" && next !== "absent";
 
     key.classList.remove(
       "green",
       "yellow",
       "gray",
+      "absent",
       "key-stale-yellow",
-      "key-fade-gray",
+      "key-fade-absent",
       "key-updated"
     );
     const keepRecent = key.classList.contains("key-recent");
@@ -524,11 +543,11 @@ function paintKeyboard(state, options = {}) {
         { once: true }
       );
     } else if (shouldFadeAbsent) {
-      key.classList.add("gray", "key-fade-gray");
+      key.classList.add("absent", "key-fade-absent");
       key.addEventListener(
         "animationend",
         () => {
-          key.classList.remove("key-fade-gray", "gray");
+          key.classList.remove("key-fade-absent", "absent");
           if (next) key.classList.add(next);
         },
         { once: true }
@@ -555,7 +574,8 @@ function findStaleYellowLetters(nextState) {
     if (
       key.classList.contains("yellow") &&
       nextState[letter] !== "yellow" &&
-      nextState[letter] !== "green"
+      nextState[letter] !== "green" &&
+      nextState[letter] !== "absent"
     ) {
       stale.push(letter);
     }
@@ -579,8 +599,9 @@ function resetKeyboardColors() {
       "green",
       "yellow",
       "gray",
+      "absent",
       "key-stale-yellow",
-      "key-fade-gray",
+      "key-fade-absent",
       "key-updated",
       "key-recent"
     );
@@ -592,12 +613,12 @@ function resetKeyboardColors() {
  */
 function updateKeyboardAfterGuess(data) {
   const finalState = buildFinalKeyboardState(data.keyboard_state || {});
-  const fadeAbsent = previousAbsentLetters.filter((letter) => finalState[letter] !== "gray");
+  const fadeAbsent = previousAbsentLetters.filter((letter) => finalState[letter] !== "absent");
   const stale = findStaleYellowLetters(finalState);
   paintKeyboard(finalState, { animateStaleFor: stale, fadeAbsentFor: fadeAbsent });
 
   previousAbsentLetters = Object.entries(finalState)
-    .filter(([, color]) => color === "gray")
+    .filter(([, color]) => color === "absent")
     .map(([letter]) => letter);
 }
 
