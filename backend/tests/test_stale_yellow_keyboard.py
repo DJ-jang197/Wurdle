@@ -33,7 +33,7 @@ def client():
 
 
 def reconcile_stale_yellow(grid_state: dict[str, str], server_state: dict[str, str]) -> dict[str, str]:
-    """Mirror frontend reconcileStaleYellowWithServer."""
+    """Legacy helper — frontend keyboard no longer uses server re-score."""
     final = dict(grid_state)
     for letter, color in grid_state.items():
         if color == "yellow":
@@ -78,6 +78,13 @@ def build_final_keyboard_state(rows: list[dict[str, str]]) -> dict[str, str]:
     return final
 
 
+def _row_letter_colors(secret: str, guess: str) -> dict[str, str]:
+    state: dict[str, str] = {}
+    feedback = score_guess(secret, guess)
+    merge_keyboard_feedback(state, guess, feedback)
+    return state
+
+
 class TestChronologicalKeyboardState:
     def test_storm_then_sheep_clears_s_yellow(self):
         storm = {"s": "yellow", "t": "gray", "o": "gray", "r": "gray", "m": "gray"}
@@ -120,27 +127,13 @@ class TestChronologicalKeyboardState:
         assert final["p"] == "green"
         assert final["a"] == "green"
 
-
-class TestReconcileStaleYellow:
-    def test_drops_yellow_when_server_says_gray(self):
-        grid = {"r": "yellow", "e": "yellow", "m": "green"}
-        server = {"r": "gray", "e": "green", "m": "green", "c": "green"}
-        assert reconcile_stale_yellow(grid, server) == {"e": "yellow", "m": "green"}
-
-    def test_keeps_yellow_when_still_in_secret(self):
-        grid = {"r": "yellow", "e": "yellow"}
-        server = {"r": "yellow", "e": "yellow"}
-        assert reconcile_stale_yellow(grid, server) == {"r": "yellow", "e": "yellow"}
-
-    def test_keeps_orange_when_server_green(self):
-        grid = {"r": "green", "e": "yellow"}
-        server = {"r": "green", "e": "gray"}
-        assert reconcile_stale_yellow(grid, server) == {"r": "green"}
-
-    def test_does_not_add_colors_from_server(self):
-        grid = {"e": "yellow"}
-        server = {"r": "gray", "e": "yellow", "a": "yellow"}
-        assert reconcile_stale_yellow(grid, server) == {"e": "yellow"}
+    def test_first_row_yellow_persists_after_mutation(self):
+        """Keyboard follows grid tiles; mutation alone must not clear yellow."""
+        row = _row_letter_colors("plant", "penis")
+        assert row.get("n") == "yellow"
+        final = build_final_keyboard_state([row])
+        assert final.get("n") == "yellow"
+        assert final.get("p") == "green"
 
 
 class TestStaleYellowAfterMutation:
@@ -151,23 +144,14 @@ class TestStaleYellowAfterMutation:
         try:
             first = process_guess(game, "realm")
             assert first["keyboard_state"]["r"] == "gray"
-            grid_state = _grid_keyboard_from_guesses("dream", ["realm"])
-            assert grid_state["r"] == "yellow"
-            assert reconcile_stale_yellow(grid_state, first["keyboard_state"]) == {
-                "e": "yellow",
-                "a": "yellow",
-                "m": "green",
-            }
+            realm_row = _row_letter_colors("dream", "realm")
+            assert build_final_keyboard_state([realm_row])["r"] == "yellow"
 
             second = process_guess(game, "reads")
-            assert second["keyboard_state"]["r"] == "gray"
-            grid_state = _grid_keyboard_from_guesses("dream", ["realm", "reads"])
-            assert grid_state["r"] == "yellow"
-            assert reconcile_stale_yellow(grid_state, second["keyboard_state"]) == {
-                "e": "yellow",
-                "a": "yellow",
-                "m": "green",
-            }
+            reads_row = _row_letter_colors("cease", "reads")
+            final = build_final_keyboard_state([realm_row, reads_row])
+            assert "r" not in final
+            assert final.get("e") == "green"
         finally:
             monkeypatch.undo()
 
@@ -194,10 +178,8 @@ class TestStaleYellowAfterMutation:
         feedback = score_guess("aabbb", "abbba")
         grid_state: dict[str, str] = {}
         merge_keyboard_feedback(grid_state, "abbba", feedback)
-        server = compute_keyboard_state("abcqz", ["abbba"], [False] * 5)
-        assert grid_state["b"] == "green"
-        assert server["b"] == "green"
-        assert reconcile_stale_yellow(grid_state, server) == {"a": "green", "b": "green"}
+        row = dict(grid_state)
+        assert build_final_keyboard_state([row]) == {"a": "green", "b": "green"}
 
 
 class TestStaleYellowApi:

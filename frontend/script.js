@@ -478,25 +478,10 @@ function buildRowLetterColors(rowIndex) {
   return state;
 }
 
-/** Drop grid yellow when the current secret no longer contains that letter. */
-function reconcileStaleYellowWithServer(gridState, serverState = {}) {
-  const final = { ...gridState };
-
-  for (const [letter, color] of Object.entries(gridState)) {
-    if (color !== "yellow") continue;
-    const serverColor = serverState[letter];
-    if (serverColor !== "yellow" && serverColor !== "green") {
-      delete final[letter];
-    }
-  }
-
-  return final;
-}
-
 /**
  * Build keyboard colors by walking guesses in order.
- * Gray on a letter clears its yellow and bans yellow from older rows forever.
- * Orange (green) still accumulates across rows.
+ * Gray on a letter in a later row clears its yellow and bans yellow for that letter.
+ * Orange (green) still accumulates across rows. Mutations alone do not recolor keys.
  */
 function buildFinalKeyboardState() {
   const final = {};
@@ -582,7 +567,7 @@ function paintKeyboard(state, options = {}) {
   });
 }
 
-/** Letters whose keyboard yellow is removed by the latest server state. */
+/** Letters whose keyboard yellow was cleared by a later grid row. */
 function findStaleYellowLetters(nextState) {
   const stale = [];
   keyboardEl.querySelectorAll(".key").forEach((key) => {
@@ -611,10 +596,9 @@ function resetKeyboardColors() {
   });
 }
 
-/** After a guess: merge grid rows in order, reconcile with server, then paint keys. */
-function updateKeyboardAfterGuess(serverState = {}) {
-  const gridState = buildFinalKeyboardState();
-  const finalState = reconcileStaleYellowWithServer(gridState, serverState);
+/** After a guess: paint keyboard from grid row history only. */
+function updateKeyboardAfterGuess() {
+  const finalState = buildFinalKeyboardState();
   const stale = findStaleYellowLetters(finalState);
   paintKeyboard(finalState, { animateStaleFor: stale });
 }
@@ -857,7 +841,7 @@ async function submitGuess() {
 
     applyFeedbackToRow(currentRow, submittedGuess, data.feedback);
     highlightRecentKeys(submittedGuess.split(""));
-    updateKeyboardAfterGuess(data.keyboard_state || {});
+    updateKeyboardAfterGuess();
     updateKnownState(data.known_state, data.locked_positions);
     highlightMutatedPosition(data.mutated_position);
     attemptsRemainingEl.textContent = String(data.attempts_remaining);

@@ -136,6 +136,48 @@ class TestMutate:
             diff_count = sum(a != b for a, b in zip(secret, new_secret))
             assert diff_count == 1
 
+    def test_mutate_prefers_unused_secret(self, monkeypatch):
+        secret = "mouth"
+        locked = [False] * WORD_LENGTH
+        used = frozenset({"mouth", "south", "youth"})
+        choices: list[list[tuple[str, int]]] = []
+
+        def fake_choice(options):
+            choices.append(list(options))
+            return options[0]
+
+        monkeypatch.setattr("game_logic.random.choice", fake_choice)
+        new_secret, _ = mutate(secret, locked, used, ["mouth", "south", "youth"])
+        assert all(word not in used for word, _ in choices[0])
+        assert new_secret not in used
+
+    def test_mutate_picks_least_recent_when_family_exhausted(self, monkeypatch):
+        locked = [False, True, True, True, True]
+        history = ["perry", "kerry", "ferry", "merry", "berry", "terry"]
+        choices: list[list[tuple[str, int]]] = []
+
+        def fake_choice(options):
+            choices.append(list(options))
+            return options[0]
+
+        monkeypatch.setattr("game_logic.random.choice", fake_choice)
+        word, _ = mutate("terry", locked, frozenset(history), history)
+        assert word in {w for w, _ in choices[0]}
+        assert not word.endswith("s")
+
+    def test_mutate_prefers_non_s_endings(self, monkeypatch):
+        locked = [False] * WORD_LENGTH
+        choices: list[list[tuple[str, int]]] = []
+
+        def fake_choice(options):
+            choices.append(list(options))
+            return options[0]
+
+        monkeypatch.setattr("game_logic.random.choice", fake_choice)
+        word, _ = mutate("crane", locked)
+        assert not word.endswith("s")
+        assert all(not w.endswith("s") for w, _ in choices[0])
+
     def test_no_unlocked_raises(self):
         with pytest.raises(ValueError):
             mutate("crane", [True] * WORD_LENGTH)

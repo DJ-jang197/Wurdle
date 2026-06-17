@@ -82,6 +82,7 @@ def main() -> None:
 
     valid_guesses = sorted(dictionary5)
     answers = sorted((dictionary5 & common5) | (dictionary5 & CURATED_ANSWERS))
+    answers = sorted(word for word in answers if not word.endswith("s"))
 
     os.makedirs(WORD_LISTS_DIR, exist_ok=True)
     guesses_path = os.path.join(WORD_LISTS_DIR, "valid_guesses.txt")

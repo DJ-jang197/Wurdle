@@ -2,7 +2,7 @@
 
 A single-player Wordle-style game with a twist: after every non-winning guess, **one letter** of the secret changes — but only in positions you have not locked with a correct (orange) tile. You get **8 attempts** instead of the usual 6.
 
-The secret always stays a **valid dictionary word**. Mutations move to another valid word one letter at a time (never random gibberish). Which position changes is **random** among all legal one-letter moves at unlocked slots — not tied to your last guess.
+The secret always stays a **valid dictionary word**. Mutations move to another valid word one letter at a time (never random gibberish). Which position changes is **random among unlocked slots** — if you lock four letters (orange tiles), only the remaining `_` positions can change. The game avoids reusing past secrets when possible and, when stuck in a small word family, picks the one used longest ago.
 
 ## How to play
 
@@ -16,7 +16,7 @@ The secret always stays a **valid dictionary word**. Mutations move to another v
 5. Because the secret can shift, feedback on old rows stays as it was when you played them — but the **current** secret is what matters for winning.
 6. **Keyboard colors** (separate from grid tiles):
    - **Orange / yellow** — best feedback so far from past guesses (no pale gold on keys)
-   - **Yellow clears** when a later guess marks that letter neutral, or when a mutation removes it from the secret; once cleared, yellow does **not** come back for that letter
+   - **Yellow clears** only when a **later guess** marks that letter neutral; mutations alone do not recolor keys. Once cleared, yellow does **not** come back for that letter
    - **Amber** — used in your most recent guess with no orange or yellow yet (yellow/orange win over amber)
 7. Win by matching the **current** secret exactly. Your **score** is your elapsed time (lower is better). Lose if you use all 8 guesses.
 
@@ -139,7 +139,7 @@ Wurdle/
 
 - **Valid guesses** (~8,600 words): 5-letter words from the [ENABLE](https://github.com/dolph/dictionary) dictionary (Merriam-Webster Scrabble word list).
 - **Names, regions, and proper nouns** are filtered out (e.g. `china`, `texas`, `paris`).
-- **Answers** (~1,140 words): common dictionary words suitable as secrets. Starting secrets must be able to mutate — isolated words with no valid neighbors are excluded.
+- **Answers** (~1,140 words): common dictionary words suitable as secrets. Starting secrets must be able to mutate — isolated words with no valid neighbors are excluded. Answer secrets prefer words **not ending in s** for richer mutations (players may still guess any valid word).
 
 Regenerate lists:
 

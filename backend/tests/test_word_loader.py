@@ -2,7 +2,14 @@
 
 import pytest
 
-from word_loader import get_answers, get_valid_guesses, is_valid_guess, reload_word_lists
+from word_loader import (
+    get_answers,
+    get_valid_guesses,
+    is_valid_guess,
+    pick_random_answer,
+    reload_word_lists,
+    without_plural_s_endings,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -46,3 +53,23 @@ def test_is_valid_guess_known_bad():
     assert is_valid_guess("abcd") is False
     assert is_valid_guess("abcdef") is False
     assert is_valid_guess("CRAN") is False
+
+
+def test_without_plural_s_endings_prefers_non_s():
+    answers = get_answers()
+    preferred = without_plural_s_endings(answers)
+    assert preferred
+    assert all(not word.endswith("s") for word in preferred)
+    assert len(preferred) < len(answers)
+
+
+def test_pick_random_answer_avoids_s_when_possible(monkeypatch):
+    picks: list[str] = []
+
+    def fake_choice(pool):
+        picks.append(pool[0])
+        return pool[0]
+
+    monkeypatch.setattr("random.choice", fake_choice)
+    pick_random_answer()
+    assert not picks[0].endswith("s")

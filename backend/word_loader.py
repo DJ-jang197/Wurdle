@@ -30,6 +30,12 @@ def get_answers() -> frozenset[str]:
     return _load_word_set(ANSWERS_PATH)
 
 
+def without_plural_s_endings(words: frozenset[str]) -> frozenset[str]:
+    """Prefer words not ending in s (plural endings cluster mutations); fallback if empty."""
+    preferred = frozenset(word for word in words if not word.endswith("s"))
+    return preferred if preferred else words
+
+
 def is_valid_guess(word: str) -> bool:
     """Return True if word is a valid 5-letter guess (case-insensitive)."""
     normalized = word.strip().lower()
@@ -44,7 +50,9 @@ def pick_random_answer() -> str:
 
     from practice_chain import get_mutable_answers
 
-    pool = list(get_mutable_answers())
+    pool = list(without_plural_s_endings(get_mutable_answers()))
+    if not pool:
+        pool = list(without_plural_s_endings(get_answers()))
     if not pool:
         pool = list(get_answers())
     return random.choice(pool)

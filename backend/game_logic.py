@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
 
-from word_loader import get_answers, get_valid_guesses, is_valid_guess, pick_random_answer
+from word_loader import get_answers, get_valid_guesses, is_valid_guess, pick_random_answer, without_plural_s_endings
 from practice_chain import PRACTICE_ANSWER, PRACTICE_GUESS_CHAIN, mutation_options
 
 WORD_LENGTH = 5
@@ -58,17 +58,79 @@ def score_guess(secret: str, guess: str) -> list[Feedback]:
     return result
 
 
-def mutate(secret: str, locked: list[bool]) -> tuple[str, int]:
-    """Mutate one unlocked position to a different letter; result stays a valid answer word."""
-    answers = get_answers()
+def _steps_since_last_use(word: str, history: list[str]) -> int:
+    """How many secrets ago this word was last used (larger = longer ago)."""
+    if word not in history:
+        return len(history) + 1
+    return len(history) - 1 - history[::-1].index(word)
+
+
+def _prefer_without_s_endings(options: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    """Drop s-ending words when other mutation targets exist."""
+    non_s = [(word, index) for word, index in options if not word.endswith("s")]
+    return non_s if non_s else options
+
+
+def _collect_mutation_options(secret: str, locked: list[bool]) -> list[tuple[str, int]]:
+    """Legal one-letter moves; answer words first, then extra valid-guess neighbors."""
+    answers = without_plural_s_endings(get_answers())
     options = mutation_options(secret, locked, answers)
+    guesses = get_valid_guesses()
     if not options:
-        options = mutation_options(secret, locked, get_valid_guesses())
+        options = _prefer_without_s_endings(mutation_options(secret, locked, guesses))
+        return options
+
+    seen = {word for word, _ in options}
+    for word, index in mutation_options(secret, locked, guesses):
+        if word not in seen:
+            options.append((word, index))
+            seen.add(word)
+    return _prefer_without_s_endings(options)
+
+
+def _pick_mutation(
+    options: list[tuple[str, int]],
+    *,
+    current: str,
+    avoid_secrets: frozenset[str],
+    secret_history: list[str],
+) -> tuple[str, int]:
+    """Prefer unused secrets, then words used longest ago; never pick current if avoidable."""
+    fresh = [(word, index) for word, index in options if word not in avoid_secrets]
+    pool = fresh if fresh else list(options)
+
+    without_current = [(word, index) for word, index in pool if word != current]
+    if without_current:
+        pool = without_current
+
+    best_gap = max(_steps_since_last_use(word, secret_history) for word, _ in pool)
+    candidates = [
+        (word, index)
+        for word, index in pool
+        if _steps_since_last_use(word, secret_history) == best_gap
+    ]
+    return random.choice(_prefer_without_s_endings(candidates))
+
+
+def mutate(
+    secret: str,
+    locked: list[bool],
+    avoid_secrets: frozenset[str] | None = None,
+    secret_history: list[str] | None = None,
+) -> tuple[str, int]:
+    """Mutate one unlocked position; diversify away from recent secrets."""
+    history = list(secret_history or [])
+    avoid = avoid_secrets if avoid_secrets is not None else frozenset(history)
+    options = _collect_mutation_options(secret, locked)
     if not options:
         raise ValueError(f"No valid dictionary mutation from {secret!r} with locked={locked}")
 
-    new_secret, index = random.choice(options)
-    return new_secret, index
+    return _pick_mutation(
+        options,
+        current=secret,
+        avoid_secrets=avoid,
+        secret_history=history,
+    )
 
 
 def build_known_state(secret: str, locked: list[bool]) -> list[str]:
@@ -175,7 +237,13 @@ class GameState:
                     None,
                 )
             else:
-                self.secret, mutated_position = mutate(self.secret, self.locked)
+                secret_history = [entry["secret"] for entry in self.secret_timeline]
+                self.secret, mutated_position = mutate(
+                    self.secret,
+                    self.locked,
+                    frozenset(secret_history),
+                    secret_history,
+                )
 
         keyboard_state = compute_keyboard_state(
             self.secret, self.guess_history, self.locked
