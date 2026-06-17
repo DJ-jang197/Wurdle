@@ -21,7 +21,6 @@ alarm
 album
 alert
 alias
-alien
 align
 alike
 alive
@@ -35,7 +34,6 @@ amber
 amend
 amino
 among
-angel
 anger
 angle
 angry
@@ -97,7 +95,6 @@ berry
 bible
 bikes
 bills
-billy
 bingo
 birds
 birth
@@ -117,7 +114,6 @@ bloom
 blues
 board
 boats
-bobby
 bonds
 bones
 bonus
@@ -172,7 +168,6 @@ candy
 canon
 cards
 cargo
-carol
 carry
 cases
 catch
@@ -195,8 +190,6 @@ chevy
 chick
 chief
 child
-chile
-china
 chips
 choir
 chose
@@ -231,8 +224,6 @@ combo
 comes
 comic
 condo
-congo
-coral
 corps
 costa
 costs
@@ -311,7 +302,6 @@ drugs
 drums
 drunk
 dryer
-dutch
 dying
 eagle
 early
@@ -404,7 +394,6 @@ forty
 forum
 found
 frame
-frank
 fraud
 fresh
 front
@@ -446,7 +435,6 @@ graph
 grass
 grave
 great
-greek
 green
 grill
 gross
@@ -463,7 +451,6 @@ hairy
 hands
 handy
 happy
-harry
 haven
 heads
 heard
@@ -473,7 +460,6 @@ heavy
 hello
 helps
 hence
-henry
 herbs
 highs
 hills
@@ -484,7 +470,6 @@ holds
 holes
 holly
 homes
-honda
 honey
 honor
 hoped
@@ -509,18 +494,10 @@ intro
 issue
 items
 ivory
-japan
 jeans
-jenny
-jerry
-jesse
-jewel
-jimmy
-johns
 joins
 joint
 jokes
-jones
 judge
 juice
 karma
@@ -585,7 +562,6 @@ looks
 loops
 loose
 lotus
-louis
 loved
 lover
 loves
@@ -605,10 +581,8 @@ mambo
 manor
 maple
 march
-maria
 marks
 marsh
-mason
 match
 maybe
 mayor
@@ -628,7 +602,6 @@ meter
 metro
 micro
 might
-miles
 mills
 minds
 mines
@@ -656,7 +629,6 @@ nails
 naked
 named
 names
-nancy
 nasty
 naval
 needs
@@ -668,7 +640,6 @@ night
 noble
 nodes
 noise
-north
 noted
 notes
 novel
@@ -703,7 +674,6 @@ panel
 panic
 pants
 paper
-paris
 parks
 parts
 party
@@ -717,7 +687,6 @@ pearl
 peers
 penny
 perry
-peter
 phase
 phone
 photo
@@ -782,9 +751,7 @@ radar
 radio
 raise
 rally
-ralph
 ranch
-randy
 range
 ranks
 rapid
@@ -916,7 +883,6 @@ small
 smart
 smell
 smile
-smith
 smoke
 snake
 socks
@@ -988,7 +954,6 @@ surge
 sweet
 swift
 swing
-swiss
 sword
 table
 taken
@@ -1010,7 +975,6 @@ tells
 terms
 terry
 tests
-texas
 texts
 thank
 theft
@@ -1038,7 +1002,6 @@ tires
 title
 today
 token
-tommy
 toner
 tones
 tools
@@ -1087,7 +1050,6 @@ types
 ultra
 uncle
 under
-union
 units
 unity
 until
@@ -1119,7 +1081,6 @@ voted
 votes
 wages
 wagon
-wales
 walks
 walls
 wants

@@ -60,6 +60,11 @@ class TestMutate:
 
 
 class TestGameState:
+    def test_create_has_initial_timeline(self):
+        game = GameState(game_id="t", secret="crane")
+        game.secret_timeline.append({"after_attempt": 0, "secret": "crane"})
+        assert game.secret_timeline[0]["secret"] == "crane"
+
     def test_win_no_mutation(self, monkeypatch):
         game = GameState(game_id="test", secret="crane")
         monkeypatch.setattr(

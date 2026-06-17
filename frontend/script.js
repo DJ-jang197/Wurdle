@@ -1,6 +1,16 @@
+/**
+ * Wurdle — client-side game UI
+ * Talks to the Flask API; renders grid, keyboard, and known-state row.
+ */
+
+/* ==========================================================================
+   Constants
+   ========================================================================== */
+
 const API_BASE = window.location.origin;
 const WORD_LENGTH = 5;
 const MAX_ROWS = 8;
+const THEME_STORAGE_KEY = "wurdle-theme";
 
 const KEYBOARD_ROWS = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -8,14 +18,60 @@ const KEYBOARD_ROWS = [
   ["Enter", "z", "x", "c", "v", "b", "n", "m", "Backspace"],
 ];
 
+/** Maps tile/keyboard CSS classes to accessible labels. */
 const FEEDBACK_LABELS = {
   green: "correct",
   yellow: "present",
   gray: "absent",
 };
 
+/** Wordle-style priority when merging letter colors (higher wins). */
 const KEY_PRIORITY = { green: 3, yellow: 2, gray: 1 };
+
+/** Delay before stripping stale yellow from keys after a mutation. */
 const MUTATION_KEYBOARD_DELAY_MS = 550;
+
+/** Physical keys that must never type into the game. */
+const IGNORED_PHYSICAL_KEYS = new Set([
+  "Shift",
+  "Control",
+  "Alt",
+  "Meta",
+  "Escape",
+  "Delete",
+  "CapsLock",
+  "Tab",
+  "Insert",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "F1",
+  "F2",
+  "F3",
+  "F4",
+  "F5",
+  "F6",
+  "F7",
+  "F8",
+  "F9",
+  "F10",
+  "F11",
+  "F12",
+  "ContextMenu",
+  "NumLock",
+  "ScrollLock",
+  "Pause",
+  "PrintScreen",
+]);
+
+/* ==========================================================================
+   State
+   ========================================================================== */
 
 let gameId = null;
 let currentRow = 0;
@@ -24,18 +80,69 @@ let gameOver = false;
 let isSubmitting = false;
 let stopwatchStartMs = null;
 let stopwatchElapsedMs = 0;
+/** Letters from the most recently submitted guess (highlighted until next attempt starts). */
+let lastSubmittedLetters = [];
 
+/* ==========================================================================
+   DOM references
+   ========================================================================== */
+
+const gridScrollEl = document.getElementById("grid-scroll");
 const gridEl = document.getElementById("grid");
 const knownStateEl = document.getElementById("known-state-row");
 const keyboardEl = document.getElementById("keyboard");
 const attemptsRemainingEl = document.getElementById("attempts-remaining");
 const errorMessageEl = document.getElementById("error-message");
 const modalEl = document.getElementById("modal");
+const modalCardEl = document.getElementById("modal-card");
+const modalDragHandle = document.getElementById("modal-drag-handle");
 const modalTitleEl = document.getElementById("modal-title");
 const modalBodyEl = document.getElementById("modal-body");
 const modalScoreEl = document.getElementById("modal-score");
+const modalTimelineEl = document.getElementById("modal-timeline");
 const restartBtn = document.getElementById("restart-btn");
+const themeToggleBtn = document.getElementById("theme-toggle");
+const helpBtn = document.getElementById("help-btn");
+const helpPanel = document.getElementById("help-panel");
+const helpCloseBtn = document.getElementById("help-close");
 
+/* ==========================================================================
+   Theme (light default — Freshly Squeezed palette; dark via toggle)
+   ========================================================================== */
+
+/** Apply saved or system-preferred theme on load. */
+function initTheme() {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  const theme =
+    saved === "dark" || saved === "light"
+      ? saved
+      : window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+  document.documentElement.setAttribute("data-theme", theme);
+  themeToggleBtn.setAttribute(
+    "aria-label",
+    theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+  );
+}
+
+/** Flip between light and dark themes; persist choice. */
+function toggleTheme() {
+  const next =
+    document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem(THEME_STORAGE_KEY, next);
+  themeToggleBtn.setAttribute(
+    "aria-label",
+    next === "dark" ? "Switch to light mode" : "Switch to dark mode"
+  );
+}
+
+/* ==========================================================================
+   Secret stopwatch (score on win only)
+   ========================================================================== */
+
+/** Format milliseconds as M:SS.CS for the win modal. */
 function formatStopwatch(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -44,11 +151,13 @@ function formatStopwatch(ms) {
   return `${minutes}:${String(seconds).padStart(2, "0")}.${String(centiseconds).padStart(2, "0")}`;
 }
 
+/** Start the hidden timer when a new game begins. */
 function startStopwatch() {
   stopwatchStartMs = Date.now();
   stopwatchElapsedMs = 0;
 }
 
+/** Stop the timer and return elapsed ms (used as win score). */
 function stopStopwatch() {
   if (stopwatchStartMs === null) return 0;
   stopwatchElapsedMs = Date.now() - stopwatchStartMs;
@@ -56,24 +165,44 @@ function stopStopwatch() {
   return stopwatchElapsedMs;
 }
 
+/** Reset timer state between games. */
 function resetStopwatch() {
   stopwatchStartMs = null;
   stopwatchElapsedMs = 0;
 }
 
+/* ==========================================================================
+   Input helpers
+   ========================================================================== */
+
+/** Keep only a single lowercase a–z letter from a key event. */
 function sanitizeInput(char) {
   return char.toLowerCase().replace(/[^a-z]/g, "");
 }
 
+/** True if this physical key should be ignored entirely. */
+function isIgnoredPhysicalKey(event) {
+  if (IGNORED_PHYSICAL_KEYS.has(event.key)) return true;
+  if (event.ctrlKey || event.altKey || event.metaKey) return true;
+  return false;
+}
+
+/** Show a red inline error under the grid. */
 function showError(message) {
   errorMessageEl.textContent = message;
   errorMessageEl.hidden = !message;
 }
 
+/** Clear the inline error message. */
 function clearError() {
   showError("");
 }
 
+/* ==========================================================================
+   Grid & known-state DOM builders
+   ========================================================================== */
+
+/** Create one empty tile element for the grid or known-state row. */
 function createTile(className = "") {
   const tile = document.createElement("div");
   tile.className = `tile ${className}`.trim();
@@ -82,6 +211,7 @@ function createTile(className = "") {
   return tile;
 }
 
+/** Build all 8 guess rows inside the scrollable viewport. */
 function buildGrid() {
   gridEl.innerHTML = "";
   for (let r = 0; r < MAX_ROWS; r++) {
@@ -89,7 +219,6 @@ function buildGrid() {
     row.className = "row";
     row.setAttribute("role", "row");
     row.dataset.row = String(r);
-    row.hidden = r > 0;
     for (let c = 0; c < WORD_LENGTH; c++) {
       row.appendChild(createTile());
     }
@@ -97,18 +226,18 @@ function buildGrid() {
   }
 }
 
-function updateVisibleRows() {
-  gridEl.querySelectorAll("[data-row]").forEach((row) => {
-    row.hidden = Number(row.dataset.row) > currentRow;
-  });
-}
-
+/** Scroll the guess area so the active row stays vertically centered. */
 function scrollToCurrentRow() {
   const row = gridEl.querySelector(`[data-row="${currentRow}"]`);
-  if (!row) return;
-  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (!row || !gridScrollEl) return;
+
+  const rowTop = row.offsetTop;
+  const rowHeight = row.offsetHeight;
+  const viewHeight = gridScrollEl.clientHeight;
+  gridScrollEl.scrollTop = rowTop - viewHeight / 2 + rowHeight / 2;
 }
 
+/** Build the five known-state (locked letter) tiles. */
 function buildKnownStateRow() {
   knownStateEl.innerHTML = "";
   for (let c = 0; c < WORD_LENGTH; c++) {
@@ -119,6 +248,7 @@ function buildKnownStateRow() {
   }
 }
 
+/** Render the on-screen QWERTY keyboard buttons. */
 function buildKeyboard() {
   keyboardEl.innerHTML = "";
   KEYBOARD_ROWS.forEach((rowKeys) => {
@@ -144,10 +274,16 @@ function buildKeyboard() {
   });
 }
 
+/** Return the five tile elements for a guess row index. */
 function getRowTiles(rowIndex) {
   return gridEl.querySelector(`[data-row="${rowIndex}"]`).children;
 }
 
+/* ==========================================================================
+   Grid rendering
+   ========================================================================== */
+
+/** Paint the in-progress guess into the active row before submit. */
 function renderCurrentGuess() {
   const tiles = getRowTiles(currentRow);
   for (let i = 0; i < WORD_LENGTH; i++) {
@@ -161,6 +297,7 @@ function renderCurrentGuess() {
   }
 }
 
+/** Update locked-letter hints from the API known_state array. */
 function updateKnownState(knownState, lockedPositions) {
   const tiles = knownStateEl.children;
   for (let i = 0; i < WORD_LENGTH; i++) {
@@ -169,13 +306,70 @@ function updateKnownState(knownState, lockedPositions) {
     tiles[i].classList.toggle("locked", lockedPositions[i]);
     tiles[i].setAttribute(
       "aria-label",
-      lockedPositions[i]
-        ? `locked letter ${letter}`
-        : "unknown position"
+      lockedPositions[i] ? `locked letter ${letter}` : "unknown position"
     );
   }
 }
 
+/** Color a submitted guess row from server feedback. */
+function applyFeedbackToRow(rowIndex, guess, feedback) {
+  const tiles = getRowTiles(rowIndex);
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    const tile = tiles[i];
+    tile.textContent = guess[i].toUpperCase();
+    tile.classList.remove("green", "yellow", "gray");
+    tile.classList.add("filled", feedback[i]);
+    tile.setAttribute(
+      "aria-label",
+      `letter ${guess[i]}, ${FEEDBACK_LABELS[feedback[i]]}`
+    );
+  }
+}
+
+/** Play the shuffle animation on a known-state tile after mutation. */
+function animateMutation(position) {
+  if (position === undefined || position === null) return;
+  const tile = knownStateEl.children[position];
+  if (!tile) return;
+  tile.classList.add("mutating");
+  tile.addEventListener(
+    "animationend",
+    () => tile.classList.remove("mutating"),
+    { once: true }
+  );
+}
+
+/* ==========================================================================
+   Keyboard colors — derived from grid tiles so they always match
+   ========================================================================== */
+
+/** Read the best color class on a tile (green > yellow > gray). */
+function getTileColor(tile) {
+  if (tile.classList.contains("green")) return "green";
+  if (tile.classList.contains("yellow")) return "yellow";
+  if (tile.classList.contains("gray")) return "gray";
+  return null;
+}
+
+/** Merge colors from every submitted row into a letter → color map. */
+function buildKeyboardStateFromGrid() {
+  const state = {};
+  for (let r = 0; r < currentRow; r++) {
+    const tiles = getRowTiles(r);
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      const letter = tiles[i].textContent.trim().toLowerCase();
+      const color = getTileColor(tiles[i]);
+      if (!letter || !color) continue;
+      const prev = state[letter];
+      if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
+        state[letter] = color;
+      }
+    }
+  }
+  return state;
+}
+
+/** Return the current feedback class on a key button, if any. */
 function getKeyColor(keyEl) {
   if (keyEl.classList.contains("green")) return "green";
   if (keyEl.classList.contains("yellow")) return "yellow";
@@ -183,42 +377,31 @@ function getKeyColor(keyEl) {
   return null;
 }
 
+/** Find the on-screen key button for a letter. */
 function getKeyElement(letter) {
   return keyboardEl.querySelector(`[data-key="${letter.toLowerCase()}"]`);
 }
 
-function mergeGuessIntoKeyboard(feedback, guess) {
-  for (let i = 0; i < WORD_LENGTH; i++) {
-    const letter = guess[i];
-    const color = feedback[i];
-    const key = getKeyElement(letter);
-    if (!key) continue;
-
-    const prev = getKeyColor(key);
-    if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
-      key.classList.remove("green", "yellow", "gray", "key-stale-yellow");
-      key.classList.add(color);
-      key.setAttribute("aria-label", `Letter ${letter}, ${FEEDBACK_LABELS[color]}`);
-    }
-  }
-}
-
-function applyKeyboardState(keyboardState = {}, options = {}) {
-  const { changedLetters = [], animateStaleYellow = false } = options;
-  const changed = new Set(changedLetters.map((l) => l.toLowerCase()));
+/**
+ * Paint keyboard keys from a letter → color map.
+ * Optionally animate keys that lost yellow after a mutation.
+ */
+function paintKeyboard(state, options = {}) {
+  const { animateStaleFor = [] } = options;
+  const staleSet = new Set(animateStaleFor.map((l) => l.toLowerCase()));
 
   keyboardEl.querySelectorAll(".key").forEach((key) => {
     const letter = key.dataset.key;
     if (!letter || letter === "Enter" || letter === "Backspace") return;
 
     const prev = getKeyColor(key);
-    const next = keyboardState[letter] || null;
-    const lostYellow =
-      animateStaleYellow && prev === "yellow" && next !== "yellow" && next !== "green";
+    const next = state[letter] || null;
+    const shouldFadeYellow =
+      staleSet.has(letter) && prev === "yellow" && next !== "yellow" && next !== "green";
 
-    key.classList.remove("green", "yellow", "gray", "key-updated", "key-stale-yellow");
+    key.classList.remove("green", "yellow", "gray", "key-stale-yellow", "key-updated");
 
-    if (lostYellow) {
+    if (shouldFadeYellow) {
       key.classList.add("key-stale-yellow");
       key.addEventListener(
         "animationend",
@@ -232,70 +415,79 @@ function applyKeyboardState(keyboardState = {}, options = {}) {
       key.classList.add(next);
     }
 
-    if (prev !== next && (changed.has(letter) || prev !== null)) {
-      key.classList.add("key-updated");
-      key.addEventListener(
-        "animationend",
-        () => key.classList.remove("key-updated"),
-        { once: true }
-      );
-    }
-
-    const stateLabel = next ? FEEDBACK_LABELS[next] : "unused";
-    key.setAttribute("aria-label", `Letter ${letter}, ${stateLabel}`);
+    const label = next ? FEEDBACK_LABELS[next] : "unused";
+    key.setAttribute("aria-label", `Letter ${letter}, ${label}`);
   });
 }
 
-function updateKeyboardAfterGuess(data, guess) {
-  const postState = data.keyboard_state || {};
-  const affected = lettersAffectedByMutation(data);
+/** Sync keyboard colors from submitted grid rows (matches tile colors). */
+function rebuildKeyboardFromGrid() {
+  paintKeyboard(buildKeyboardStateFromGrid());
+}
 
-  mergeGuessIntoKeyboard(data.feedback, guess);
+/**
+ * After a guess: sync keyboard to grid.
+ * If the secret mutated, fade stale yellow on the replaced letter only.
+ */
+function updateKeyboardAfterGuess(data) {
+  rebuildKeyboardFromGrid();
 
-  if (data.mutated_position != null) {
-    setTimeout(() => {
-      applyKeyboardState(postState, {
-        changedLetters: affected,
-        animateStaleYellow: true,
-      });
-    }, MUTATION_KEYBOARD_DELAY_MS);
-  } else {
-    applyKeyboardState(postState);
+  if (data.mutated_position == null || !data.mutated_from) return;
+
+  setTimeout(() => {
+    const gridState = buildKeyboardStateFromGrid();
+    const postState = data.keyboard_state || {};
+    const fromLetter = data.mutated_from.toLowerCase();
+
+    if (gridState[fromLetter] === "yellow" && postState[fromLetter] !== "yellow") {
+      delete gridState[fromLetter];
+      if (postState[fromLetter]) {
+        gridState[fromLetter] = postState[fromLetter];
+      }
+      paintKeyboard(gridState, { animateStaleFor: [fromLetter] });
+    } else {
+      rebuildKeyboardFromGrid();
+    }
+  }, MUTATION_KEYBOARD_DELAY_MS);
+}
+
+/** Strip all feedback colors from keyboard keys (new game). */
+function resetKeyboardColors() {
+  keyboardEl.querySelectorAll(".key").forEach((key) => {
+    key.classList.remove("green", "yellow", "gray", "key-stale-yellow", "key-updated", "key-recent");
+  });
+}
+
+/** Highlight keys used in the previous submitted guess (palette amber ring). */
+function highlightRecentKeys(letters) {
+  clearRecentKeyHighlight();
+  lastSubmittedLetters = [...letters];
+  lastSubmittedLetters.forEach((letter) => {
+    const key = getKeyElement(letter);
+    if (key) key.classList.add("key-recent");
+  });
+}
+
+/** Remove previous-guess highlight when the player starts a new attempt. */
+function clearRecentKeyHighlight() {
+  lastSubmittedLetters = [];
+  keyboardEl.querySelectorAll(".key-recent").forEach((key) => {
+    key.classList.remove("key-recent");
+  });
+}
+
+/** Called when the player begins typing a new guess. */
+function onNewAttemptInput() {
+  if (lastSubmittedLetters.length > 0) {
+    clearRecentKeyHighlight();
   }
 }
 
-function lettersAffectedByMutation(data) {
-  const letters = new Set();
-  if (data.mutated_from) letters.add(data.mutated_from);
-  if (data.mutated_to) letters.add(data.mutated_to);
-  return [...letters];
-}
+/* ==========================================================================
+   Game flow & modals
+   ========================================================================== */
 
-function applyFeedbackToRow(rowIndex, guess, feedback) {
-  const tiles = getRowTiles(rowIndex);
-  for (let i = 0; i < WORD_LENGTH; i++) {
-    const tile = tiles[i];
-    tile.textContent = guess[i].toUpperCase();
-    tile.classList.add("filled", feedback[i]);
-    tile.setAttribute(
-      "aria-label",
-      `letter ${guess[i]}, ${FEEDBACK_LABELS[feedback[i]]}`
-    );
-  }
-}
-
-function animateMutation(position) {
-  if (position === undefined || position === null) return;
-  const tile = knownStateEl.children[position];
-  if (!tile) return;
-  tile.classList.add("mutating");
-  tile.addEventListener(
-    "animationend",
-    () => tile.classList.remove("mutating"),
-    { once: true }
-  );
-}
-
+/** Enable or disable keyboard input (after win/loss). */
 function setInputEnabled(enabled) {
   gameOver = !enabled;
   keyboardEl.querySelectorAll("button").forEach((btn) => {
@@ -303,7 +495,83 @@ function setInputEnabled(enabled) {
   });
 }
 
-function showModal(title, body, scoreMs = null) {
+/** Render the secret mutation timeline in the game-over dialog. */
+function renderSecretTimeline(timeline) {
+  if (!timeline || timeline.length === 0) {
+    modalTimelineEl.hidden = true;
+    modalTimelineEl.innerHTML = "";
+    return;
+  }
+
+  const items = timeline
+    .map((entry) => {
+      const word = entry.secret.toUpperCase();
+      if (entry.after_attempt === 0) {
+        return `<li><strong>Start:</strong> ${word}</li>`;
+      }
+      const detail =
+        entry.mutated_from && entry.mutated_to
+          ? ` <span class="mutation-detail">(pos ${entry.mutated_position + 1}: ${entry.mutated_from} → ${entry.mutated_to})</span>`
+          : "";
+      return `<li><strong>After guess ${entry.after_attempt}:</strong> ${word}${detail}</li>`;
+    })
+    .join("");
+
+  modalTimelineEl.innerHTML = `<h3>Secret word history</h3><ul>${items}</ul>`;
+  modalTimelineEl.hidden = false;
+}
+
+/** Reset draggable modal position to default center-top. */
+function resetModalPosition() {
+  modalCardEl.style.left = "50%";
+  modalCardEl.style.top = "18%";
+  modalCardEl.style.transform = "translateX(-50%)";
+}
+
+/** Allow dragging the game-over card by its handle so the board stays visible. */
+function initDraggableModal() {
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  modalDragHandle.addEventListener("pointerdown", (event) => {
+    dragging = true;
+    modalDragHandle.setPointerCapture(event.pointerId);
+    const rect = modalCardEl.getBoundingClientRect();
+    offsetX = event.clientX - rect.left;
+    offsetY = event.clientY - rect.top;
+    modalCardEl.style.transform = "none";
+  });
+
+  modalDragHandle.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    modalCardEl.style.left = `${event.clientX - offsetX}px`;
+    modalCardEl.style.top = `${event.clientY - offsetY}px`;
+  });
+
+  modalDragHandle.addEventListener("pointerup", () => {
+    dragging = false;
+  });
+
+  modalDragHandle.addEventListener("pointercancel", () => {
+    dragging = false;
+  });
+}
+
+/** Open the how-to-play rules panel. */
+function openHelpPanel() {
+  helpPanel.hidden = false;
+}
+
+/** Close the how-to-play rules panel. */
+function closeHelpPanel() {
+  helpPanel.hidden = true;
+}
+
+/** Show the end-game dialog; include stopwatch score on win and secret timeline. */
+function showModal(title, body, options = {}) {
+  const { scoreMs = null, secretTimeline = null } = options;
+  resetModalPosition();
   modalTitleEl.textContent = title;
   modalBodyEl.textContent = body;
   if (scoreMs !== null) {
@@ -313,38 +581,42 @@ function showModal(title, body, scoreMs = null) {
     modalScoreEl.hidden = true;
     modalScoreEl.textContent = "";
   }
+  renderSecretTimeline(secretTimeline);
   modalEl.hidden = false;
 }
 
+/** Hide the end-game dialog. */
 function hideModal() {
   modalEl.hidden = true;
   modalScoreEl.hidden = true;
   modalScoreEl.textContent = "";
+  modalTimelineEl.hidden = true;
+  modalTimelineEl.innerHTML = "";
 }
 
-function resetKeyboardColors() {
-  keyboardEl.querySelectorAll(".key").forEach((key) => {
-    key.classList.remove("green", "yellow", "gray");
-  });
-}
-
+/** Reset all UI state for a fresh game. */
 function resetUI() {
   currentRow = 0;
   currentGuess = "";
   gameOver = false;
   isSubmitting = false;
+  lastSubmittedLetters = [];
   clearError();
   hideModal();
   resetStopwatch();
   resetKeyboardColors();
   buildGrid();
   buildKnownStateRow();
-  updateVisibleRows();
   attemptsRemainingEl.textContent = String(MAX_ROWS);
   setInputEnabled(true);
   scrollToCurrentRow();
 }
 
+/* ==========================================================================
+   API
+   ========================================================================== */
+
+/** POST/GET helper with JSON body and basic error handling. */
 async function apiRequest(path, options = {}) {
   let response;
   try {
@@ -370,6 +642,7 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
+/** Request a new game_id from the server and start the stopwatch. */
 async function startNewGame() {
   resetUI();
   setInputEnabled(false);
@@ -382,12 +655,14 @@ async function startNewGame() {
     clearError();
     startStopwatch();
     setInputEnabled(true);
+    scrollToCurrentRow();
   } catch (err) {
     showError(err.message);
     setInputEnabled(false);
   }
 }
 
+/** Submit the current 5-letter guess to the API and update the board. */
 async function submitGuess() {
   if (gameOver || isSubmitting) return;
 
@@ -411,15 +686,17 @@ async function submitGuess() {
       return;
     }
 
-    applyFeedbackToRow(currentRow, currentGuess, data.feedback);
-    updateKeyboardAfterGuess(data, currentGuess);
+    const submittedGuess = currentGuess;
+
+    applyFeedbackToRow(currentRow, submittedGuess, data.feedback);
+    highlightRecentKeys(submittedGuess.split(""));
+    updateKeyboardAfterGuess(data);
     updateKnownState(data.known_state, data.locked_positions);
     attemptsRemainingEl.textContent = String(data.attempts_remaining);
     animateMutation(data.mutated_position);
 
     currentGuess = "";
     currentRow += 1;
-    updateVisibleRows();
     scrollToCurrentRow();
 
     if (data.status === "won") {
@@ -428,14 +705,15 @@ async function submitGuess() {
       showModal(
         "You won!",
         `The word was ${data.secret_word.toUpperCase()}.`,
-        scoreMs
+        { scoreMs, secretTimeline: data.secret_timeline }
       );
     } else if (data.status === "lost") {
       setInputEnabled(false);
       stopStopwatch();
       showModal(
         "Game over",
-        `The final secret was ${data.secret_word.toUpperCase()}. Better luck next time!`
+        `The final secret was ${data.secret_word.toUpperCase()}. Better luck next time!`,
+        { secretTimeline: data.secret_timeline }
       );
     }
   } catch (err) {
@@ -445,6 +723,11 @@ async function submitGuess() {
   }
 }
 
+/* ==========================================================================
+   Input handlers (on-screen + physical keyboard)
+   ========================================================================== */
+
+/** Handle a click on the virtual keyboard. */
 function handleKeyPress(key) {
   if (gameOver || isSubmitting) return;
 
@@ -463,14 +746,16 @@ function handleKeyPress(key) {
   const letter = sanitizeInput(key);
   if (!letter || currentGuess.length >= WORD_LENGTH) return;
 
+  if (currentGuess.length === 0) onNewAttemptInput();
   currentGuess += letter;
   renderCurrentGuess();
   clearError();
-  scrollToCurrentRow();
 }
 
+/** Handle physical keyboard; ignores Shift/Ctrl/Alt/Esc/Delete etc. */
 function handlePhysicalKeyboard(event) {
   if (gameOver || isSubmitting) return;
+  if (isIgnoredPhysicalKey(event)) return;
 
   if (event.key === "Enter") {
     event.preventDefault();
@@ -490,12 +775,24 @@ function handlePhysicalKeyboard(event) {
   if (!letter || currentGuess.length >= WORD_LENGTH) return;
 
   event.preventDefault();
+  if (currentGuess.length === 0) onNewAttemptInput();
   currentGuess += letter;
   renderCurrentGuess();
   clearError();
-  scrollToCurrentRow();
 }
 
+/* ==========================================================================
+   Boot
+   ========================================================================== */
+
+initTheme();
+initDraggableModal();
+themeToggleBtn.addEventListener("click", toggleTheme);
+helpBtn.addEventListener("click", openHelpPanel);
+helpCloseBtn.addEventListener("click", closeHelpPanel);
+helpPanel.addEventListener("click", (event) => {
+  if (event.target === helpPanel) closeHelpPanel();
+});
 restartBtn.addEventListener("click", startNewGame);
 document.addEventListener("keydown", handlePhysicalKeyboard);
 

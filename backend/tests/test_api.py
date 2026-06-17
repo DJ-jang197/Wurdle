@@ -112,4 +112,22 @@ def test_in_progress_no_secret(client, monkeypatch):
     data = resp.get_json()
     assert data["status"] == "in_progress"
     assert "secret_word" not in data
+    assert "secret_timeline" not in data
     assert "keyboard_state" in data
+
+
+def test_win_includes_secret_timeline(client, monkeypatch):
+    new_resp = client.post("/api/new-game", json={})
+    game_id = new_resp.get_json()["game_id"]
+    game = get_game(game_id)
+    secret = game.secret
+
+    monkeypatch.setattr("game_logic.is_valid_guess", lambda w: w == secret)
+
+    resp = client.post(
+        "/api/guess", json={"game_id": game_id, "guess": secret}
+    )
+    data = resp.get_json()
+    assert data["status"] == "won"
+    assert "secret_timeline" in data
+    assert data["secret_timeline"][0]["secret"] == secret

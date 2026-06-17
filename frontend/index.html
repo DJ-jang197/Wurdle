@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,11 +10,40 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="top-controls">
+    <button
+      id="help-btn"
+      type="button"
+      class="icon-btn"
+      aria-label="How to play"
+      title="How to play"
+    >
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.75"/>
+        <path d="M12 17v-0.5M10.5 10.5a2 2 0 1 1 3.5 1.5c-.8.7-1.5 1.2-1.5 2.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button
+      id="theme-toggle"
+      type="button"
+      class="icon-btn"
+      aria-label="Toggle dark mode"
+      title="Toggle dark mode"
+    >
+      <svg id="icon-moon" class="icon-svg theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a6.5 6.5 0 1 0 11.5 11.5z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+      </svg>
+      <svg id="icon-sun" class="icon-svg theme-icon" viewBox="0 0 24 24" aria-hidden="true" hidden>
+        <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.75"/>
+        <path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
   <div class="app">
     <header class="game-header">
-      <h1>Wurdle</h1>
+      <h1 class="title-row">Wurdle</h1>
       <p class="tagline">The secret shifts — catch up before you run out of guesses.</p>
-
       <div id="status-bar" class="status-bar" aria-live="polite">
         <span id="attempts-label">Attempts remaining: <strong id="attempts-remaining">8</strong></span>
       </div>
@@ -23,30 +52,48 @@
     <section class="known-state-section" aria-label="Known locked letters">
       <h2 class="visually-hidden">Known state</h2>
       <p class="known-state-label" aria-hidden="true">Locked letters</p>
-      <div id="known-state-row" class="row known-state-row" role="group" aria-label="Locked letters in position">
-        <!-- filled by JS -->
-      </div>
+      <div id="known-state-row" class="row known-state-row" role="group" aria-label="Locked letters in position"></div>
     </section>
 
-    <div id="error-message" class="error-message" role="alert" aria-live="assertive" hidden></div>
+    <div class="error-slot">
+      <div id="error-message" class="error-message" role="alert" aria-live="assertive" hidden></div>
+    </div>
 
     <section class="grid-section" aria-label="Guess grid">
       <h2 class="visually-hidden">Guesses</h2>
-      <div id="grid" class="grid" role="grid" aria-label="Eight guess rows of five letters">
-        <!-- filled by JS -->
+      <div id="grid-scroll" class="grid-scroll">
+        <div id="grid" class="grid" role="grid" aria-label="Eight guess rows of five letters"></div>
       </div>
     </section>
 
-    <div id="keyboard" class="keyboard" role="group" aria-label="On-screen keyboard">
-      <!-- filled by JS -->
+    <div id="keyboard" class="keyboard" role="group" aria-label="On-screen keyboard"></div>
+  </div>
+
+  <div id="help-panel" class="help-panel" role="dialog" aria-labelledby="help-title" hidden>
+    <div class="help-panel-inner">
+      <button id="help-close" type="button" class="help-close" aria-label="Close how to play">&times;</button>
+      <h2 id="help-title">How to play</h2>
+      <ol class="help-rules">
+        <li>Guess the <strong>5-letter</strong> secret word in <strong>8 tries</strong>.</li>
+        <li>Each guess must be a valid English dictionary word.</li>
+        <li>Tiles turn <span class="swatch correct">orange</span> if the letter is correct, <span class="swatch present">yellow</span> if it is in the word but wrong spot, and <span class="swatch absent">gray</span> if it is not in the word.</li>
+        <li><strong>Green locks a letter.</strong> Locked letters appear in the row above and never mutate again.</li>
+        <li>After each wrong guess, one <em>unlocked</em> letter in the secret randomly changes — watch for the glow on the locked row.</li>
+        <li>Win by matching the current secret exactly. Your <strong>score</strong> is your time (lower is better).</li>
+      </ol>
     </div>
   </div>
 
   <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
-    <div class="modal-content">
+    <div id="modal-card" class="modal-content">
+      <div id="modal-drag-handle" class="modal-drag-handle" title="Drag to move">
+        <span class="modal-drag-dots" aria-hidden="true">⋯</span>
+        <span class="modal-drag-label">Drag</span>
+      </div>
       <h2 id="modal-title"></h2>
       <p id="modal-body"></p>
       <p id="modal-score" class="score-line" hidden></p>
+      <div id="modal-timeline" class="secret-timeline" hidden></div>
       <button id="restart-btn" type="button">Play Again</button>
     </div>
   </div>

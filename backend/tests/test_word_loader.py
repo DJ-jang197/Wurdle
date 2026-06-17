@@ -29,6 +29,12 @@ def test_answers_are_common_english_samples():
         assert word in answers
 
 
+def test_proper_nouns_and_regions_excluded():
+    guesses = get_valid_guesses()
+    for excluded in ("china", "texas", "japan", "paris", "spain", "james"):
+        assert excluded not in guesses
+
+
 def test_is_valid_guess_known_good():
     assert is_valid_guess("crane") is True
     assert is_valid_guess("CRANE") is True

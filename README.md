@@ -81,8 +81,9 @@ The secret word is never included in responses until the game ends (win or loss)
 
 ## Word lists
 
-- **Valid guesses** (~8,600 words): 5-letter words from the [ENABLE](https://github.com/dolph/dictionary) Scrabble dictionary (recognized English).
-- **Answers** (~1,180 words): common 5-letter English words (Google 10k list ∩ ENABLE), plus curated familiar game words like `crane`, `apple`, `house`.
+- **Valid guesses** (~8,600 words): 5-letter words from the [ENABLE](https://github.com/dolph/dictionary) dictionary (Merriam-Webster Scrabble word list).
+- **Names, regions, and proper nouns** are filtered out (e.g. `china`, `texas`, `paris`).
+- **Answers** (~1,140 words): common dictionary words suitable as secrets.
 
 Regenerate lists:
 

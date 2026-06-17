@@ -186,7 +186,6 @@ algor
 algum
 alias
 alibi
-alien
 alifs
 align
 alike
@@ -274,7 +273,6 @@ anear
 anele
 anent
 angas
-angel
 anger
 angle
 angry
@@ -714,7 +712,6 @@ bilge
 bilgy
 bilks
 bills
-billy
 bimah
 bimas
 bimbo
@@ -818,7 +815,6 @@ boars
 boart
 boast
 boats
-bobby
 bocce
 bocci
 boche
@@ -1172,7 +1168,6 @@ carls
 carns
 carny
 carob
-carol
 carom
 carpi
 carps
@@ -1221,7 +1216,6 @@ celli
 cello
 cells
 celom
-celts
 cense
 cento
 cents
@@ -1288,13 +1282,11 @@ chide
 chief
 chiel
 child
-chile
 chili
 chill
 chimb
 chime
 chimp
-china
 chine
 chink
 chino
@@ -1505,7 +1497,6 @@ cones
 coney
 conga
 conge
-congo
 conic
 conin
 conks
@@ -1536,7 +1527,6 @@ coper
 copes
 copra
 copse
-coral
 corby
 cords
 cored
@@ -2191,7 +2181,6 @@ dusks
 dusky
 dusts
 dusty
-dutch
 duvet
 dwarf
 dweeb
@@ -2333,7 +2322,6 @@ equip
 erase
 erect
 ergot
-erica
 ernes
 erode
 erose
@@ -2736,7 +2724,6 @@ frags
 frail
 frame
 franc
-frank
 fraps
 frass
 frats
@@ -3136,7 +3123,6 @@ graze
 great
 grebe
 greed
-greek
 green
 grees
 greet
@@ -3310,7 +3296,6 @@ harls
 harms
 harps
 harpy
-harry
 harsh
 harts
 hasps
@@ -3381,7 +3366,6 @@ hemps
 hempy
 hence
 henna
-henry
 hents
 herbs
 herby
@@ -3467,12 +3451,10 @@ holly
 holms
 holts
 homed
-homer
 homes
 homey
 homos
 honan
-honda
 honed
 honer
 hones
@@ -3714,7 +3696,6 @@ jambs
 jammy
 janes
 janty
-japan
 japed
 japer
 japes
@@ -3737,18 +3718,14 @@ jehus
 jells
 jelly
 jemmy
-jenny
 jerid
 jerks
 jerky
-jerry
-jesse
 jests
 jetes
 jeton
 jetty
 jewed
-jewel
 jibbs
 jibed
 jiber
@@ -3758,7 +3735,6 @@ jiffy
 jihad
 jills
 jilts
-jimmy
 jimpy
 jingo
 jinks
@@ -3773,7 +3749,6 @@ jnana
 jocko
 jocks
 joeys
-johns
 joins
 joint
 joist
@@ -3785,7 +3760,6 @@ joles
 jolly
 jolts
 jolty
-jones
 joram
 jorum
 jotas
@@ -4354,7 +4328,6 @@ lotto
 lotus
 lough
 louie
-louis
 loupe
 loups
 lours
@@ -4510,7 +4483,6 @@ march
 marcs
 mares
 marge
-maria
 marks
 marls
 marly
@@ -4522,7 +4494,6 @@ marvy
 maser
 mashy
 masks
-mason
 massa
 masse
 massy
@@ -4644,7 +4615,6 @@ mikes
 mikra
 milch
 miler
-miles
 milia
 milks
 milky
@@ -4727,7 +4697,6 @@ molds
 moldy
 moles
 molls
-molly
 molto
 molts
 momes
@@ -4902,7 +4871,6 @@ namer
 names
 nanas
 nance
-nancy
 nanny
 napes
 nappe
@@ -5043,7 +5011,6 @@ nopal
 noria
 noris
 norms
-north
 nosed
 noses
 nosey
@@ -5331,7 +5298,6 @@ pares
 pareu
 parge
 pargo
-paris
 parka
 parks
 parle
@@ -5451,7 +5417,6 @@ pesto
 pests
 pesty
 petal
-peter
 petit
 petti
 petto
@@ -5917,7 +5882,6 @@ rakes
 rakis
 rales
 rally
-ralph
 ramee
 ramet
 ramie
@@ -5927,7 +5891,6 @@ ramus
 rance
 ranch
 rands
-randy
 ranee
 range
 rangy
@@ -6447,7 +6410,6 @@ scope
 scops
 score
 scorn
-scots
 scour
 scout
 scowl
@@ -6867,7 +6829,6 @@ smews
 smile
 smirk
 smite
-smith
 smock
 smogs
 smoke
@@ -7311,7 +7272,6 @@ swats
 sways
 swear
 sweat
-swede
 sweep
 sweer
 sweet
@@ -7327,7 +7287,6 @@ swink
 swipe
 swirl
 swish
-swiss
 swith
 swive
 swobs
@@ -7402,9 +7361,7 @@ tamed
 tamer
 tames
 tamis
-tammy
 tamps
-tango
 tangs
 tangy
 tanka
@@ -7523,7 +7480,6 @@ tetra
 teuch
 teugh
 tewed
-texas
 texts
 thack
 thane
@@ -7660,7 +7616,6 @@ tolyl
 toman
 tombs
 tomes
-tommy
 tonal
 tondi
 tondo
@@ -7668,7 +7623,6 @@ toned
 toner
 tones
 toney
-tonga
 tongs
 tonic
 tonne
@@ -7850,7 +7804,6 @@ turbo
 turds
 turfs
 turfy
-turks
 turns
 turps
 tushy
@@ -7951,7 +7904,6 @@ ungot
 unhat
 unhip
 unify
-union
 unite
 units
 unity
@@ -8210,7 +8162,6 @@ waker
 wakes
 waled
 waler
-wales
 walks
 walla
 walls
@@ -8364,7 +8315,6 @@ wilds
 wiled
 wiles
 wills
-willy
 wilts
 wimps
 wimpy

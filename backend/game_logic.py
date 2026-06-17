@@ -93,6 +93,7 @@ class GameState:
     attempts_used: int = 0
     status: GameStatus = "in_progress"
     guess_history: list[str] = field(default_factory=list)
+    secret_timeline: list[dict] = field(default_factory=list)
 
     def apply_guess(self, guess: str) -> dict:
         """Process a guess and return the API response payload."""
@@ -154,16 +155,28 @@ class GameState:
 
         if mutated_position is not None:
             response["mutated_position"] = mutated_position
+            self.secret_timeline.append(
+                {
+                    "after_attempt": self.attempts_used,
+                    "secret": self.secret,
+                    "mutated_position": mutated_position,
+                    "mutated_from": previous_secret[mutated_position],
+                    "mutated_to": self.secret[mutated_position],
+                }
+            )
 
         if self.status in ("won", "lost"):
             response["secret_word"] = self.secret
+            response["secret_timeline"] = list(self.secret_timeline)
 
         return response
 
 
 def create_game() -> GameState:
     game_id = str(uuid.uuid4())
-    game = GameState(game_id=game_id, secret=pick_random_answer())
+    secret = pick_random_answer()
+    game = GameState(game_id=game_id, secret=secret)
+    game.secret_timeline.append({"after_attempt": 0, "secret": secret})
     _games[game_id] = game
     return game
 
