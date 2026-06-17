@@ -36,7 +36,7 @@ def _row_tops(page) -> list[float]:
           const scroller = document.getElementById('grid-scroll');
           const grid = document.getElementById('grid');
           const cRect = scroller.getBoundingClientRect();
-          return [...grid.querySelectorAll('[data-row]')].map((row) => {
+          return [...grid.querySelectorAll('.row[data-row]')].map((row) => {
             const r = row.getBoundingClientRect();
             return r.top - cRect.top + scroller.scrollTop;
           });
