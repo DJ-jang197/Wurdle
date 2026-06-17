@@ -55,10 +55,12 @@ _PREFERRED_ENDS = (
 
 
 def one_letter_diff(a: str, b: str) -> bool:
+    """True if two equal-length words differ in exactly one position."""
     return len(a) == len(b) and sum(x != y for x, y in zip(a, b)) == 1
 
 
 def neighbors(word: str, word_set: frozenset[str]) -> list[str]:
+    """All one-letter variants of `word` that exist in `word_set`."""
     result: list[str] = []
     for i in range(WORD_LENGTH):
         prefix, suffix = word[:i], word[i + 1 :]
@@ -130,6 +132,7 @@ def find_chains_bfs(
 
 
 def _score_chain(chain: list[str], answers: frozenset[str]) -> tuple[int, int, str]:
+    """Rank chains: prefer all-answer words, then more answer words, then lexicographic start."""
     answer_count = sum(1 for w in chain if w in answers)
     all_answers = answer_count == len(chain)
     return (1 if all_answers else 0, answer_count, chain[0])

@@ -62,6 +62,7 @@ def mutate(secret: str, locked: list[bool]) -> tuple[str, int]:
 
 
 def build_known_state(secret: str, locked: list[bool]) -> list[str]:
+    """Return locked letters and '_' for positions still able to mutate."""
     return [secret[i] if locked[i] else "_" for i in range(WORD_LENGTH)]
 
 
@@ -98,6 +99,8 @@ def compute_keyboard_state(
 
 @dataclass
 class GameState:
+    """In-memory state for one active Wurdle game."""
+
     game_id: str
     secret: str
     locked: list[bool] = field(default_factory=lambda: [False] * WORD_LENGTH)
@@ -198,6 +201,7 @@ class GameState:
 
 
 def create_game() -> GameState:
+    """Create a new standard game with a random mutable secret."""
     game_id = str(uuid.uuid4())
     secret = pick_random_answer()
     game = GameState(game_id=game_id, secret=secret)
@@ -234,10 +238,12 @@ def create_test_game(secret: str, forced_mutations: list[str] | None = None) -> 
 
 
 def get_game(game_id: str) -> GameState | None:
+    """Look up an active game by id, or None if missing."""
     return _games.get(game_id)
 
 
 def process_guess(game: GameState, guess: str) -> dict:
+    """Apply a guess to a game and return the API response payload."""
     return game.apply_guess(guess)
 
 

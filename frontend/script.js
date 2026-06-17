@@ -398,13 +398,21 @@ function renderCurrentGuess() {
 function updateKnownState(knownState, lockedPositions) {
   const tiles = knownStateEl.children;
   for (let i = 0; i < WORD_LENGTH; i++) {
+    const tile = tiles[i];
+    const isLocked = Boolean(lockedPositions?.[i]);
     const letter = knownState[i];
-    tiles[i].textContent = letter === "_" ? "_" : letter.toUpperCase();
-    tiles[i].classList.toggle("locked", lockedPositions[i]);
-    tiles[i].setAttribute(
-      "aria-label",
-      lockedPositions[i] ? `locked letter ${letter}` : "unknown position"
-    );
+
+    tile.classList.remove("locked", "filled", "green", "yellow", "gray");
+
+    if (isLocked && letter && letter !== "_") {
+      tile.textContent = letter.toUpperCase();
+      tile.classList.add("locked", "filled", "green");
+      tile.setAttribute("aria-label", `locked letter ${letter}`);
+      continue;
+    }
+
+    tile.textContent = "_";
+    tile.setAttribute("aria-label", "unknown position");
   }
 }
 
@@ -455,8 +463,8 @@ function getTileColor(tile) {
   return null;
 }
 
-/** Build letter → color map from one row (duplicate letters take best tile color). */
-function buildKeyboardStateFromRow(rowIndex) {
+/** Per-letter colors from one row (duplicate letters use best tile color). */
+function buildRowLetterColors(rowIndex) {
   const state = {};
   const rowEl = getRowElement(rowIndex);
   if (!rowEl) return state;
@@ -485,15 +493,33 @@ function reconcileStaleYellowWithServer(gridState, serverState = {}) {
   return final;
 }
 
-/** Merge grid colors for keyboard: orange and yellow only (no absent/tan on keys). */
+/**
+ * Build keyboard colors by walking guesses in order.
+ * Gray on a letter clears its yellow and bans yellow from older rows forever.
+ * Orange (green) still accumulates across rows.
+ */
 function buildFinalKeyboardState() {
   const final = {};
+  const yellowBanned = new Set();
 
   for (let r = 0; r <= currentRow; r++) {
-    const rowState = buildKeyboardStateFromRow(r);
-    for (const [letter, color] of Object.entries(rowState)) {
-      if (color === "gray") continue;
-      mergeKeyboardFeedback(final, letter, color);
+    const rowColors = buildRowLetterColors(r);
+    for (const [letter, color] of Object.entries(rowColors)) {
+      const key = letter.toLowerCase();
+      if (color === "green") {
+        mergeKeyboardFeedback(final, key, color);
+        continue;
+      }
+      if (color === "gray") {
+        if (final[key] === "yellow") {
+          delete final[key];
+        }
+        yellowBanned.add(key);
+        continue;
+      }
+      if (color === "yellow" && !yellowBanned.has(key)) {
+        mergeKeyboardFeedback(final, key, color);
+      }
     }
   }
 
@@ -546,7 +572,8 @@ function paintKeyboard(state, options = {}) {
       key.classList.add(next);
     }
 
-    if (recentSet.has(letter)) {
+    // Amber recent highlight is for neutral keys only; yellow/green feedback wins.
+    if (recentSet.has(letter) && next !== "yellow" && next !== "green") {
       key.classList.add("key-recent");
     }
 
@@ -572,7 +599,7 @@ function findStaleYellowLetters(nextState) {
   return stale;
 }
 
-/** Track letters from the last submitted guess; paintKeyboard applies the amber highlight. */
+/** Track letters from the last submitted guess; paintKeyboard applies amber on neutral keys only. */
 function highlightRecentKeys(letters) {
   lastSubmittedLetters = letters.map((l) => l.toLowerCase());
 }
@@ -584,7 +611,7 @@ function resetKeyboardColors() {
   });
 }
 
-/** After a guess: keyboard shows orange and yellow feedback from the grid. */
+/** After a guess: merge grid rows in order, reconcile with server, then paint keys. */
 function updateKeyboardAfterGuess(serverState = {}) {
   const gridState = buildFinalKeyboardState();
   const finalState = reconcileStaleYellowWithServer(gridState, serverState);
@@ -943,6 +970,7 @@ resetGridScroll();
 
 if (new URLSearchParams(window.location.search).has("test")) {
   window.__wurdleTest = {
+    /** Bind a test game id and reset the UI for Playwright runs. */
     bindGame(id) {
       gameId = id;
       gameOver = false;
@@ -961,6 +989,7 @@ if (new URLSearchParams(window.location.search).has("test")) {
       setInputEnabled(true);
       attemptsRemainingEl.textContent = "8";
     },
+    /** Return CSS class names on a keyboard letter key (for assertions). */
     keyClasses(letter) {
       const key = keyboardEl.querySelector(`[data-key="${letter.toLowerCase()}"]`);
       return key ? [...key.classList] : [];

@@ -26,6 +26,7 @@ from word_loader import get_answers, get_valid_guesses  # noqa: E402
 
 
 def main() -> None:
+    """CLI: search for and print a valid eight-word practice chain."""
     parser = argparse.ArgumentParser(description="Find a one-letter-diff word chain.")
     parser.add_argument("--end", help="Force last word (secret) in chain")
     parser.add_argument(

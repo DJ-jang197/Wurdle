@@ -15,15 +15,18 @@ def reload_word_lists() -> None:
 
 @lru_cache(maxsize=1)
 def _load_word_set(path: str) -> frozenset[str]:
+    """Load a newline-delimited word file as a lowercase frozenset."""
     with open(path, encoding="utf-8") as f:
         return frozenset(line.strip().lower() for line in f if line.strip())
 
 
 def get_valid_guesses() -> frozenset[str]:
+    """All five-letter words allowed as player guesses."""
     return _load_word_set(VALID_GUESSES_PATH)
 
 
 def get_answers() -> frozenset[str]:
+    """Subset of common words that may be chosen as secrets."""
     return _load_word_set(ANSWERS_PATH)
 
 
@@ -36,6 +39,7 @@ def is_valid_guess(word: str) -> bool:
 
 
 def pick_random_answer() -> str:
+    """Pick a random secret that can mutate at least once; fallback to any answer."""
     import random
 
     from practice_chain import get_mutable_answers

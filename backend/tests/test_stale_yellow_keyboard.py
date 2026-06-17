@@ -51,6 +51,76 @@ def _grid_keyboard_from_guesses(secret: str, guesses: list[str]) -> dict[str, st
     return {letter: color for letter, color in state.items() if color != "gray"}
 
 
+def build_final_keyboard_state(rows: list[dict[str, str]]) -> dict[str, str]:
+    """Mirror frontend buildFinalKeyboardState (chronological, gray bans yellow)."""
+    final: dict[str, str] = {}
+    yellow_banned: set[str] = set()
+    priority = {"green": 3, "yellow": 2, "gray": 1}
+
+    for row in rows:
+        for letter, color in row.items():
+            key = letter.lower()
+            if color == "green":
+                prev = final.get(key)
+                if prev is None or priority[color] > priority[prev]:
+                    final[key] = color
+                continue
+            if color == "gray":
+                if final.get(key) == "yellow":
+                    final.pop(key, None)
+                yellow_banned.add(key)
+                continue
+            if color == "yellow" and key not in yellow_banned:
+                prev = final.get(key)
+                if prev is None or priority[color] > priority[prev]:
+                    final[key] = color
+
+    return final
+
+
+class TestChronologicalKeyboardState:
+    def test_storm_then_sheep_clears_s_yellow(self):
+        storm = {"s": "yellow", "t": "gray", "o": "gray", "r": "gray", "m": "gray"}
+        sheep = {"s": "gray", "h": "gray", "e": "gray", "p": "gray"}
+        assert "s" not in build_final_keyboard_state([storm, sheep])
+
+    def test_yellow_does_not_return_after_gray_row(self):
+        storm = {"s": "yellow", "t": "gray", "o": "gray", "r": "gray", "m": "gray"}
+        sheep = {"s": "gray", "h": "gray", "e": "gray", "p": "gray"}
+        assert "s" not in build_final_keyboard_state([storm, sheep, storm])
+
+    def test_sauce_then_space_clears_stale_a_yellow(self):
+        rows = [
+            {"s": "green", "c": "green"},
+            {"a": "yellow", "s": "gray", "e": "yellow"},
+            {"a": "gray", "s": "gray", "p": "gray", "c": "gray", "e": "yellow"},
+        ]
+        final = build_final_keyboard_state(rows)
+        assert "a" not in final
+        assert final["s"] == "green"
+        assert final["e"] == "yellow"
+
+    def test_integration_learn_blend_sauce_space(self):
+        game = create_test_game("learn", forced_mutations=["blend"])
+        monkeypatch = pytest.MonkeyPatch()
+        monkeypatch.setattr("game_logic.is_valid_guess", lambda w: True)
+        try:
+            process_guess(game, "sauce")
+            result = process_guess(game, "space")
+            assert result["keyboard_state"]["a"] == "gray"
+        finally:
+            monkeypatch.undo()
+
+    def test_orange_not_downgraded_by_gray(self):
+        rows = [
+            {"p": "green", "a": "green"},
+            {"p": "gray", "a": "green"},
+        ]
+        final = build_final_keyboard_state(rows)
+        assert final["p"] == "green"
+        assert final["a"] == "green"
+
+
 class TestReconcileStaleYellow:
     def test_drops_yellow_when_server_says_gray(self):
         grid = {"r": "yellow", "e": "yellow", "m": "green"}

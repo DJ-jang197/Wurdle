@@ -72,6 +72,21 @@ def _key_classes(page, letter: str) -> list[str]:
     )
 
 
+def test_sauce_space_clears_a_yellow_keeps_amber(page):
+    _bind_test_game(page, "learn", ["blend"])
+    _submit_word(page, "sauce")
+    _submit_word(page, "space")
+
+    a_classes = _key_classes(page, "a")
+    assert "yellow" not in a_classes
+    assert "green" not in a_classes
+    assert "key-recent" in a_classes
+
+    page.locator(".keyboard").screenshot(
+        path=SNAPSHOT_DIR / "sauce-space-a-neutral.png"
+    )
+
+
 def test_stale_yellow_clears_r_after_secret_mutates(page, live_server_url):
     _bind_test_game(page, "dream", ["cease"])
     _submit_word(page, "realm")
@@ -95,6 +110,7 @@ def test_yellow_stays_when_letter_remains_in_secret(page):
 
     r_classes = _key_classes(page, "r")
     assert "yellow" in r_classes
+    assert "key-recent" not in r_classes
 
     page.locator(".keyboard").screenshot(
         path=SNAPSHOT_DIR / "yellow-r-kept.png"
@@ -120,3 +136,19 @@ def test_amber_only_on_latest_guess(page):
 
     assert "key-recent" in _key_classes(page, "r")
     assert "key-recent" not in _key_classes(page, "l")
+
+
+def test_s_yellow_cleared_permanently_after_gray_row(page):
+    _bind_test_game(page, "mesas", ["apple", "mesas"])
+    _submit_word(page, "storm")
+    assert "yellow" in _key_classes(page, "s")
+
+    _submit_word(page, "sheep")
+    assert "yellow" not in _key_classes(page, "s")
+
+    _submit_word(page, "storm")
+    assert "yellow" not in _key_classes(page, "s")
+
+    page.locator(".keyboard").screenshot(
+        path=SNAPSHOT_DIR / "s-yellow-permanently-cleared.png"
+    )

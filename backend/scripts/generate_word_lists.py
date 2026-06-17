@@ -62,15 +62,18 @@ PROPER_NOUNS_EXCLUDE = frozenset({
 
 
 def fetch(url: str) -> str:
+    """Download text content from a URL."""
     with urllib.request.urlopen(url, timeout=90) as response:
         return response.read().decode("utf-8")
 
 
 def is_dictionary_word(word: str) -> bool:
+    """True for five-letter alphabetic words that are not excluded proper nouns."""
     return len(word) == 5 and word.isalpha() and word not in PROPER_NOUNS_EXCLUDE
 
 
 def main() -> None:
+    """Build valid_guesses.txt and answers.txt from ENABLE and a common-word filter."""
     enable_words = {w.strip().lower() for w in fetch(ENABLE_URL).splitlines() if w.strip()}
     dictionary5 = {w for w in enable_words if is_dictionary_word(w)}
 

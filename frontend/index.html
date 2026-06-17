@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#fff9eb">
   <title>Wurdle ;)</title>
   <script>
+    /* Apply saved/system theme before first paint to avoid a light flash in dark mode. */
     (function () {
       var key = "wurdle-theme";
       var saved = localStorage.getItem(key);
@@ -126,19 +127,20 @@
           </ul>
         </li>
         <li><strong>Orange locks a letter.</strong> Locked letters appear in the row above the grid and never change again.</li>
-        <li>After each wrong guess, <strong>one unlocked letter</strong> in the secret changes to another valid word. A glow on the locked row shows which spot changed.</li>
-        <li>The secret can change after each wrong guess. Grid tiles always show the result from when that guess was made. On the keyboard, yellow clears if that letter is no longer in the secret after a mutation.</li>
+        <li>After each wrong guess, <strong>one unlocked letter</strong> in the secret changes to another valid word. <b>A glow on the locked row</b> shows which spot changed.</li>
+        <li>The secret can change after each wrong guess. Grid tiles always show the result from when that guess was made. On the keyboard, yellow clears when a later guess marks that letter neutral, or when a mutation removes it from the secret. Once cleared, yellow does not return for that letter.</li>
         <li><strong>Keyboard colors</strong>
           <ul class="color-legend">
             <li><span class="legend-box correct" aria-hidden="true"></span><span class="legend-text"><strong>Orange.</strong> Right letter, right place on a past guess. Stays colored.</span></li>
-            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word at wrong place on a past guess. Stays colored unless the secret mutates that letter out.</span></li>
+            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word at wrong place on a past guess. Clears when a later guess marks it neutral or a mutation removes it from the secret, and does not come back.</span></li>
             <li><span class="legend-box neutral-key" aria-hidden="true"></span><span class="legend-text"><strong>Neutral.</strong> You have no feedback for this letter yet.</span></li>
-            <li><span class="legend-box recent-key" aria-hidden="true"></span><span class="legend-text"><strong>Amber.</strong> You used this letter in your most recent guess.</span></li>
+            <li><span class="legend-box recent-key" aria-hidden="true"></span><span class="legend-text"><strong>Amber.</strong> You used this letter in your most recent guess and have no orange or yellow feedback for it yet.</span></li>
           </ul>
         </li>
         <li>Row numbers beside the grid mark attempts <strong>1 through 8</strong>.</li>
         <li>Win by matching the current secret exactly. Your <strong>score</strong> is your time (lower is better).</li>
       </ol>
+      <p class="help-footer">Please do not get ragebaited ;)</p>
     </div>
   </div>
 

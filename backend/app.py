@@ -24,21 +24,25 @@ FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fronten
 
 @app.route("/health")
 def health():
+    """Liveness check for deployment and monitoring."""
     return jsonify({"status": "ok"})
 
 
 @app.route("/")
 def index():
+    """Serve the single-page game shell."""
     return send_from_directory(FRONTEND_DIR, "index.html")
 
 
 @app.route("/<path:filename>")
 def static_files(filename):
+    """Serve frontend assets (CSS, JS, etc.)."""
     return send_from_directory(FRONTEND_DIR, filename)
 
 
 @app.route("/api/new-game", methods=["POST"])
 def new_game():
+    """Start a normal or practice game; returns game_id (never the secret)."""
     data = request.get_json(silent=True) or {}
     if data.get("practice"):
         game = create_practice_game()
@@ -65,6 +69,7 @@ def new_game():
 
 @app.route("/api/guess", methods=["POST"])
 def guess():
+    """Submit a five-letter guess for an active game."""
     data = request.get_json(silent=True) or {}
     game_id = data.get("game_id")
     raw_guess = data.get("guess", "")
@@ -86,6 +91,7 @@ def guess():
 
 @app.route("/api/test/new-game", methods=["POST"])
 def test_new_game():
+    """Create a deterministic game for automated tests (TESTING mode only)."""
     if not app.config.get("TESTING"):
         return jsonify({"status": "error", "error": "Not available"}), 404
 

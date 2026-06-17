@@ -33,6 +33,7 @@ PRACTICE_CHAIN_PATH = BACKEND_DIR / "practice_chain.py"
 
 
 def write_chain_to_module(chain: list[str]) -> None:
+    """Persist PRACTICE_ANSWER and PRACTICE_GUESS_CHAIN into practice_chain.py."""
     text = PRACTICE_CHAIN_PATH.read_text(encoding="utf-8")
     answer = chain[-1]
     block = "PRACTICE_GUESS_CHAIN = [\n" + "".join(
@@ -53,6 +54,7 @@ def write_chain_to_module(chain: list[str]) -> None:
 
 
 def main() -> None:
+    """CLI: validate or regenerate the built-in practice chain."""
     parser = argparse.ArgumentParser(
         description="Prepare a valid 8-word one-letter practice chain."
     )

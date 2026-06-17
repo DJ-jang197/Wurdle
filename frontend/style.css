@@ -314,10 +314,12 @@ h1 {
   font-size: clamp(1rem, 3.5vw, 1.35rem);
 }
 
-.known-state-row .tile.locked {
+.known-state-row .tile.locked,
+.known-state-row .tile.green {
   border-style: solid;
-  color: var(--tile-text-on-color);
+  background: var(--green);
   border-color: var(--green);
+  color: var(--tile-text-on-color);
 }
 
 .known-state-row .tile.mutation-hint {
@@ -781,6 +783,13 @@ h1 {
 
 .help-rules li {
   margin-bottom: 10px;
+}
+
+.help-footer {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
 
 .color-legend {
