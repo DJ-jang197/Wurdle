@@ -20,7 +20,7 @@
   --gray: #c4a66a;
   --gray-key: var(--palette-pale-gold);
   --green-key: var(--palette-orange);
-  --yellow-key: var(--palette-lemon);
+  --yellow-key: color-mix(in srgb, var(--palette-lemon) 48%, var(--gray-key));
   --error: #d64500;
   --mutation-glow: var(--palette-amber);
   --title-color: var(--palette-amber);
@@ -28,8 +28,8 @@
   --toggle-text: var(--text);
   --tile-text-on-color: #2a1f0a;
   --key-text-on-gray: #fff9eb;
-  --key-recent-bg: var(--palette-amber);
-  --key-recent-ring: var(--palette-orange);
+  --key-recent-ring: color-mix(in srgb, var(--palette-orange) 60%, transparent);
+  --key-recent-glow: color-mix(in srgb, var(--palette-amber) 40%, transparent);
 }
 
 /* ==========================================================================
@@ -47,7 +47,7 @@
   --gray: #5c4a2a;
   --gray-key: #3d3020;
   --green-key: var(--palette-orange);
-  --yellow-key: var(--palette-amber);
+  --yellow-key: color-mix(in srgb, var(--palette-amber) 36%, var(--gray-key));
   --error: #ff7900;
   --mutation-glow: var(--palette-lemon);
   --title-color: var(--palette-lemon);
@@ -55,8 +55,8 @@
   --toggle-text: var(--palette-lemon);
   --tile-text-on-color: #14100a;
   --key-text-on-gray: #fff9eb;
-  --key-recent-bg: var(--palette-amber);
-  --key-recent-ring: var(--palette-lemon);
+  --key-recent-ring: color-mix(in srgb, var(--palette-lemon) 55%, transparent);
+  --key-recent-glow: color-mix(in srgb, var(--palette-amber) 30%, transparent);
 }
 
 /* ==========================================================================
@@ -64,13 +64,46 @@
    ========================================================================== */
 
 :root {
-  --tile-gap: 6px;
-  --tile-size: 62px;
-  --key-height: clamp(44px, 7dvh, 54px);
+  --visible-grid-rows: 5;
+  --tile-gap: clamp(4px, 0.35dvh, 6px);
+  --key-gap: clamp(3px, 0.45dvh, 5px);
+  --grid-scroll-pad-y: 8px;
+  --grid-scroll-pad-x: 10px;
+  --chrome-top: clamp(2.75rem, 7dvh, 3.75rem);
+  --chrome-header: clamp(4rem, 10dvh, 5.5rem);
+  --chrome-known: clamp(2.4rem, 6dvh, 3rem);
+  --chrome-error: 1.35rem;
+  --chrome-bottom: clamp(0.35rem, 0.8dvh, 0.6rem);
+  --key-to-tile-ratio: 0.8;
+  --fixed-chrome: calc(
+    var(--chrome-top) + var(--chrome-header) + var(--chrome-known)
+      + var(--chrome-error) + var(--chrome-bottom)
+  );
+  --tile-size: clamp(
+    30px,
+    calc(
+      (
+        100dvh - var(--fixed-chrome) - 2 * var(--grid-scroll-pad-y)
+        - 3 * var(--tile-gap) - 2 * var(--key-gap)
+      )
+      / (var(--visible-grid-rows) + 3 * var(--key-to-tile-ratio))
+    ),
+    56px
+  );
+  --key-height: clamp(
+    28px,
+    calc(var(--tile-size) * var(--key-to-tile-ratio)),
+    44px
+  );
+  --grid-viewport-height: calc(
+    var(--visible-grid-rows) * var(--tile-size)
+    + (var(--visible-grid-rows) - 1) * var(--tile-gap)
+    + 2 * var(--grid-scroll-pad-y)
+  );
   --font: "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-title: "Titan One", cursive, sans-serif;
   --app-max-width: min(100%, 520px);
-  --error-slot-height: 1.75rem;
+  --error-slot-height: 1.35rem;
   --board-width: calc(5 * var(--tile-size) + 4 * var(--tile-gap));
 }
 
@@ -86,13 +119,14 @@ html {
 
 body {
   margin: 0;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   display: flex;
   justify-content: center;
-  overflow-x: hidden;
+  overflow: hidden;
   transition: background 0.25s ease, color 0.25s ease;
 }
 
@@ -151,14 +185,16 @@ body {
 
 .app {
   width: var(--app-max-width);
-  min-height: 100dvh;
-  padding: clamp(8px, 2vw, 16px) clamp(8px, 3vw, 16px)
-    clamp(12px, 2vw, 20px);
-  padding-top: clamp(48px, 8vw, 56px);
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: clamp(4px, 1vw, 10px) clamp(8px, 3vw, 16px)
+    clamp(8px, 1.5vw, 12px);
+  padding-top: clamp(44px, 7vw, 52px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(6px, 1.5dvh, 12px);
+  gap: clamp(3px, 0.8dvh, 8px);
+  overflow: hidden;
 }
 
 .game-header {
@@ -174,14 +210,14 @@ body {
 .title-row {
   margin: 0;
   font-family: var(--font-title);
-  font-size: clamp(2rem, 7vw, 2.75rem);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: clamp(1.55rem, 5vw, 2.2rem);
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--title-color);
-  width: var(--board-width);
+  width: 100%;
   max-width: 100%;
   text-align: center;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 h1 {
@@ -189,8 +225,8 @@ h1 {
 }
 
 .tagline {
-  margin: 4px 0 0;
-  font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+  margin: 2px 0 0;
+  font-size: clamp(0.68rem, 2vw, 0.78rem);
   color: var(--text-muted);
   line-height: 1.35;
   max-width: 28rem;
@@ -202,9 +238,9 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 }
 
 .error-slot {
@@ -214,7 +250,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
   flex-shrink: 0;
 }
 
@@ -279,40 +315,42 @@ h1 {
 .grid-section {
   width: var(--board-width);
   max-width: 100%;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .grid-scroll {
   width: 100%;
-  max-height: min(480px, 52dvh);
+  height: var(--grid-viewport-height);
+  max-height: var(--grid-viewport-height);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 6px 10px 10px;
-  margin-bottom: 14px;
-  border: 2px solid var(--border);
+  padding: var(--grid-scroll-pad-y) var(--grid-scroll-pad-x);
+  margin-bottom: 4px;
+  border: 1px solid var(--palette-amber);
+  outline: 2px solid var(--palette-orange);
+  outline-offset: 0;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 55%, transparent);
   scrollbar-width: thin;
-  scrollbar-color: var(--palette-amber) var(--border);
+  scrollbar-color: var(--palette-amber) color-mix(in srgb, var(--palette-pale-gold) 45%, transparent);
 }
 
 .grid-scroll::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .grid-scroll::-webkit-scrollbar-thumb {
   background: var(--palette-amber);
-  border-radius: 5px;
-  border: 2px solid var(--border);
+  border-radius: 4px;
+  border: 1px solid var(--palette-orange);
 }
 
 .grid-scroll::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--border) 40%, transparent);
-  border-radius: 5px;
-  margin: 4px 0;
+  background: color-mix(in srgb, var(--palette-pale-gold) 35%, transparent);
+  border-radius: 4px;
+  margin: 2px 0;
 }
 
 .row {
@@ -336,7 +374,7 @@ h1 {
   align-items: center;
   justify-content: center;
   font-family: var(--font);
-  font-size: 1.85rem;
+  font-size: clamp(1rem, calc(var(--tile-size) * 0.46), 1.65rem);
   font-weight: 700;
   text-transform: uppercase;
   user-select: none;
@@ -392,22 +430,23 @@ h1 {
   max-width: var(--app-max-width);
   display: flex;
   flex-direction: column;
-  gap: clamp(4px, 1vw, 6px);
+  gap: var(--key-gap);
   flex-shrink: 0;
+  margin-top: auto;
   padding-top: 4px;
-  margin-top: 4px;
-  border-top: 2px solid var(--border);
+  border-top: 2px solid var(--palette-pale-gold);
 }
 
 .keyboard-row {
   display: flex;
   justify-content: center;
-  gap: clamp(3px, 1vw, 5px);
+  gap: var(--key-gap);
+  width: 100%;
 }
 
 .key {
   flex: 1 1 0;
-  max-width: 44px;
+  max-width: min(44px, calc((100% - 9 * var(--key-gap)) / 10));
   min-width: 0;
   height: var(--key-height);
   border: none;
@@ -453,9 +492,9 @@ h1 {
 }
 
 .key.wide {
-  flex: 1.4 1 0;
-  max-width: 72px;
-  font-size: clamp(0.55rem, 2.2vw, 0.72rem);
+  flex: 1.35 1 0;
+  max-width: min(68px, calc((100% - 7 * var(--key-gap)) / 6));
+  font-size: clamp(0.5rem, 2vw, 0.68rem);
 }
 
 .key.green {
@@ -473,16 +512,19 @@ h1 {
   color: var(--key-text-on-gray);
 }
 
+/* Recent guess: ring glow only — keep green/yellow/gray underneath visible */
 .key.key-recent {
-  box-shadow: 0 0 0 3px var(--key-recent-ring);
-  background: var(--key-recent-bg);
-  color: var(--tile-text-on-color);
+  outline: 2px solid var(--key-recent-ring);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px var(--key-recent-glow);
 }
 
 .key.key-recent.green,
 .key.key-recent.yellow,
 .key.key-recent.gray {
-  box-shadow: 0 0 0 3px var(--key-recent-ring);
+  outline: 2px solid var(--key-recent-ring);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px var(--key-recent-glow);
 }
 
 /* ==========================================================================
@@ -701,131 +743,62 @@ h1 {
 .legend-box.present { background: var(--yellow); }
 .legend-box.absent { background: var(--gray); }
 
-.practice-note {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-  font-size: 0.88rem;
-  color: var(--text-muted);
-  text-align: left;
-  line-height: 1.5;
-}
-
-.practice-note code {
-  background: var(--bg);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.85rem;
-}
-
-/* Built-in practice panel (temporary scripted run) */
-.practice-panel {
-  width: min(100%, 420px);
-  margin: 0 auto;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--yellow) 12%, var(--surface));
-  text-align: left;
-}
-
-.practice-panel-title {
-  margin: 0 0 4px;
-  font-weight: 700;
-  font-size: 0.92rem;
-}
-
-.practice-panel-hint {
-  margin: 0 0 8px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.practice-panel-label {
-  margin: 0 0 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.practice-chain {
-  margin: 0 0 12px;
-  padding-left: 1.25rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 12px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.practice-chain li {
-  list-style: decimal;
-}
-
-.practice-chain li.practice-chain-current {
-  color: var(--orange);
-}
-
-.practice-chain li.practice-chain-done {
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
-
-.practice-panel-active {
-  border-color: var(--orange);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--orange) 35%, transparent);
-}
-
-.practice-start-btn {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.practice-start-btn:hover {
-  background: color-mix(in srgb, var(--orange) 15%, var(--surface));
-}
-
 /* ==========================================================================
    Responsive tweaks
    ========================================================================== */
 
 @media (max-width: 380px) {
   :root {
-    --tile-size: 54px;
+    --chrome-header: clamp(3.2rem, 9dvh, 4.5rem);
+    --key-to-tile-ratio: 0.76;
   }
 }
 
 @media (max-height: 700px) {
   :root {
-    --tile-size: 56px;
-    --key-height: 42px;
+    --chrome-header: clamp(3rem, 8dvh, 4rem);
+    --grid-scroll-pad-y: 6px;
   }
 
   .app {
-    gap: 6px;
-    padding-top: 52px;
+    gap: 2px;
+    padding-top: 44px;
   }
 
   .tagline {
     display: none;
   }
+}
 
-  .grid-scroll {
-    max-height: min(400px, 48dvh);
+@media (max-height: 560px) {
+  :root {
+    --chrome-header: clamp(2.4rem, 7dvh, 3rem);
+    --chrome-known: clamp(2rem, 5dvh, 2.5rem);
+    --key-to-tile-ratio: 0.72;
+    --tile-size: clamp(
+      26px,
+      calc(
+        (
+          100dvh - var(--fixed-chrome) - 2 * var(--grid-scroll-pad-y)
+          - 3 * var(--tile-gap) - 2 * var(--key-gap)
+        )
+        / (var(--visible-grid-rows) + 3 * var(--key-to-tile-ratio))
+      ),
+      48px
+    );
+  }
+
+  .status-bar {
+    display: none;
   }
 }
 
 @media (max-width: 360px) {
+  :root {
+    --grid-scroll-pad-x: 6px;
+  }
+
   .key.wide {
-    max-width: 56px;
+    max-width: min(56px, calc((100% - 7 * var(--key-gap)) / 6));
   }
 }

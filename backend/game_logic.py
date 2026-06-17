@@ -18,18 +18,7 @@ GameStatus = Literal["in_progress", "won", "lost"]
 
 _games: dict[str, "GameState"] = {}
 
-# Temporary built-in practice scenario (fixed secret, no mutations, 8-word chain).
-PRACTICE_ANSWER = "ghost"
-PRACTICE_GUESS_CHAIN = [
-    "crane",
-    "slate",
-    "trace",
-    "bread",
-    "flint",
-    "storm",
-    "gloom",
-    "ghost",
-]
+from practice_chain import PRACTICE_ANSWER, PRACTICE_GUESS_CHAIN
 
 
 def score_guess(secret: str, guess: str) -> list[Feedback]:

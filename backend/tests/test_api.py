@@ -121,11 +121,11 @@ def test_practice_mode_sets_secret(client):
     assert resp.status_code == 200
     data = resp.get_json()
     game = get_game(data["game_id"])
-    assert game.secret == "ghost"
+    assert game.secret == "bound"
     assert game.practice_mode is True
     assert data["practice_mode"] is True
     assert len(data["practice_chain"]) == 8
-    assert data["practice_chain"][-1] == "ghost"
+    assert data["practice_chain"][-1] == "bound"
 
 
 def test_practice_chain_wins_on_eighth_guess(client):
@@ -143,7 +143,7 @@ def test_practice_chain_wins_on_eighth_guess(client):
             assert data["status"] == "in_progress"
         else:
             assert data["status"] == "won"
-            assert data["secret_word"] == "ghost"
+            assert data["secret_word"] == "bound"
 
 
 def test_win_includes_secret_timeline(client, monkeypatch):

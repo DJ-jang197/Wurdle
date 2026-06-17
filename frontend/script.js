@@ -28,18 +28,6 @@ const FEEDBACK_LABELS = {
 /** Wordle-style priority when merging letter colors (higher wins). */
 const KEY_PRIORITY = { green: 3, yellow: 2, gray: 1 };
 
-/** Temporary built-in practice words (matches backend PRACTICE_GUESS_CHAIN). */
-const DEFAULT_PRACTICE_CHAIN = [
-  "crane",
-  "slate",
-  "trace",
-  "bread",
-  "flint",
-  "storm",
-  "gloom",
-  "ghost",
-];
-
 /** Delay before stripping stale yellow from keys after a mutation. */
 const MUTATION_KEYBOARD_DELAY_MS = 550;
 
@@ -94,9 +82,6 @@ let stopwatchStartMs = null;
 let stopwatchElapsedMs = 0;
 /** Letters from the most recently submitted guess (highlighted until next attempt starts). */
 let lastSubmittedLetters = [];
-/** Built-in practice chain (mirrors backend PRACTICE_GUESS_CHAIN). */
-let practiceChain = [...DEFAULT_PRACTICE_CHAIN];
-let isPracticeMode = false;
 
 /* ==========================================================================
    DOM references
@@ -120,9 +105,6 @@ const themeToggleBtn = document.getElementById("theme-toggle");
 const helpBtn = document.getElementById("help-btn");
 const helpPanel = document.getElementById("help-panel");
 const helpCloseBtn = document.getElementById("help-close");
-const practicePanel = document.getElementById("practice-panel");
-const practiceChainEl = document.getElementById("practice-chain");
-const startPracticeBtn = document.getElementById("start-practice-btn");
 
 /* ==========================================================================
    Theme (light default — Freshly Squeezed palette; dark via toggle)
@@ -244,10 +226,35 @@ function buildGrid() {
   }
 }
 
-/** Scroll the guess area only if the active row is clipped (no forced jump to bottom). */
+/** Reset the guess grid scroll position to the top. */
+function resetGridScroll() {
+  if (!gridScrollEl) return;
+  const snapTop = () => {
+    gridScrollEl.scrollTop = 0;
+  };
+  snapTop();
+  requestAnimationFrame(() => {
+    snapTop();
+    requestAnimationFrame(snapTop);
+  });
+}
+
+/** Scroll the guess area only if the active row is clipped (never jump on row 0). */
 function scrollToCurrentRow() {
+  if (!gridScrollEl) return;
+
+  if (currentRow === 0) {
+    resetGridScroll();
+    return;
+  }
+
   const row = gridEl.querySelector(`[data-row="${currentRow}"]`);
-  if (!row || !gridScrollEl) return;
+  if (!row) return;
+
+  if (gridScrollEl.clientHeight <= 0) {
+    requestAnimationFrame(scrollToCurrentRow);
+    return;
+  }
 
   const pad = 8;
   const rowTop = row.offsetTop;
@@ -379,8 +386,10 @@ function getTileColor(tile) {
 /** Merge colors from every submitted row into a letter → color map. */
 function buildKeyboardStateFromGrid() {
   const state = {};
-  for (let r = 0; r < currentRow; r++) {
-    const tiles = getRowTiles(r);
+  for (let r = 0; r <= currentRow; r++) {
+    const rowEl = gridEl.querySelector(`[data-row="${r}"]`);
+    if (!rowEl) continue;
+    const tiles = rowEl.children;
     for (let i = 0; i < WORD_LENGTH; i++) {
       const letter = tiles[i].textContent.trim().toLowerCase();
       const color = getTileColor(tiles[i]);
@@ -659,34 +668,7 @@ function resetUI() {
   buildKnownStateRow();
   attemptsRemainingEl.textContent = String(MAX_ROWS);
   setInputEnabled(true);
-  scrollToCurrentRow();
-}
-
-/** Render the practice word chain; highlight the word for the current row. */
-function renderPracticeChain() {
-  if (!practiceChainEl) return;
-
-  practiceChainEl.innerHTML = "";
-  practiceChain.forEach((word, index) => {
-    const item = document.createElement("li");
-    item.textContent = word.toUpperCase();
-    item.dataset.index = String(index);
-    if (isPracticeMode && index === currentRow) {
-      item.classList.add("practice-chain-current");
-    } else if (isPracticeMode && index < currentRow) {
-      item.classList.add("practice-chain-done");
-    }
-    practiceChainEl.appendChild(item);
-  });
-}
-
-function setPracticeMode(active, chain = null) {
-  isPracticeMode = active;
-  if (Array.isArray(chain) && chain.length) {
-    practiceChain = chain;
-  }
-  practicePanel?.classList.toggle("practice-panel-active", active);
-  renderPracticeChain();
+  resetGridScroll();
 }
 
 /* ==========================================================================
@@ -720,36 +702,23 @@ async function apiRequest(path, options = {}) {
 }
 
 /** Request a new game_id from the server and start the stopwatch. */
-async function startNewGame(options = {}) {
-  const practice = options.practice === true;
+async function startNewGame() {
   resetUI();
-  setPracticeMode(false);
   setInputEnabled(false);
-  showError(practice ? "Starting practice run…" : "Starting new game…");
+  showError("Starting new game…");
 
   try {
-    const body = practice ? JSON.stringify({ practice: true }) : "{}";
-    const data = await apiRequest("/api/new-game", { method: "POST", body });
+    const data = await apiRequest("/api/new-game", { method: "POST", body: "{}" });
     gameId = data.game_id;
     attemptsRemainingEl.textContent = String(data.max_attempts);
     clearError();
-
-    if (data.practice_mode && Array.isArray(data.practice_chain)) {
-      setPracticeMode(true, data.practice_chain);
-    }
-
     startStopwatch();
     setInputEnabled(true);
-    scrollToCurrentRow();
+    resetGridScroll();
   } catch (err) {
     showError(err.message);
     setInputEnabled(false);
   }
-}
-
-/** Start the built-in scripted practice scenario. */
-function startPracticeGame() {
-  startNewGame({ practice: true });
 }
 
 /** Submit the current 5-letter guess to the API and update the board. */
@@ -779,15 +748,14 @@ async function submitGuess() {
     const submittedGuess = currentGuess;
 
     applyFeedbackToRow(currentRow, submittedGuess, data.feedback);
-    highlightRecentKeys(submittedGuess.split(""));
     updateKeyboardAfterGuess(data);
+    highlightRecentKeys(submittedGuess.split(""));
     updateKnownState(data.known_state, data.locked_positions);
     attemptsRemainingEl.textContent = String(data.attempts_remaining);
     animateMutation(data.mutated_position);
 
     currentGuess = "";
     currentRow += 1;
-    renderPracticeChain();
     requestAnimationFrame(() => scrollToCurrentRow());
 
     if (data.status === "won") {
@@ -882,12 +850,11 @@ helpCloseBtn.addEventListener("click", closeHelpPanel);
 helpPanel.addEventListener("click", (event) => {
   if (event.target === helpPanel) closeHelpPanel();
 });
-restartBtn.addEventListener("click", () => startNewGame());
-startPracticeBtn.addEventListener("click", startPracticeGame);
+restartBtn.addEventListener("click", startNewGame);
 document.addEventListener("keydown", handlePhysicalKeyboard);
 
 buildGrid();
 buildKnownStateRow();
 buildKeyboard();
-renderPracticeChain();
+resetGridScroll();
 startNewGame();

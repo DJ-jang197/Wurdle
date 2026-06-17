@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wurdle</title>
+  <title>Wurdle ;)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
@@ -42,7 +42,7 @@
 
   <div class="app">
     <header class="game-header">
-      <h1 class="title-row">Wurdle</h1>
+      <h1 class="title-row">Wurdle ;)</h1>
       <p class="tagline">The secret shifts — catch up before you run out of guesses.</p>
       <div id="status-bar" class="status-bar" aria-live="polite">
         <span id="attempts-label">Attempts remaining: <strong id="attempts-remaining">8</strong></span>
@@ -58,18 +58,6 @@
     <div class="error-slot">
       <div id="error-message" class="error-message" role="alert" aria-live="assertive" hidden></div>
     </div>
-
-    <section id="practice-panel" class="practice-panel" aria-label="Practice run">
-      <p class="practice-panel-title">Temporary practice run</p>
-      <p class="practice-panel-hint">
-        One word per guess below — these are <strong>what you type</strong>, not the secret changing.
-        The secret is always <strong>GHOST</strong> and does not mutate in practice mode.
-        Win by typing <strong>GHOST</strong> on your 8th guess.
-      </p>
-      <p class="practice-panel-label">Your guesses (in order):</p>
-      <ol id="practice-chain" class="practice-chain"></ol>
-      <button id="start-practice-btn" type="button" class="practice-start-btn">Start practice run</button>
-    </section>
 
     <section class="grid-section" aria-label="Guess grid">
       <h2 class="visually-hidden">Guesses</h2>
@@ -99,9 +87,6 @@
         <li>After each wrong guess, one unlocked letter in the secret randomly changes — watch for the glow on the locked row.</li>
         <li>Win by matching the current secret exactly. Your <strong>score</strong> is your time (lower is better).</li>
       </ol>
-      <div class="practice-note">
-        <strong>Practice run:</strong> the panel above the grid lists 8 guesses to type in order against a fixed secret (<strong>GHOST</strong>). In normal games, only <strong>one</strong> unlocked letter in the secret changes after each wrong guess.
-      </div>
     </div>
   </div>
 

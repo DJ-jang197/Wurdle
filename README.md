@@ -81,3 +81,35 @@ Regenerate lists:
 cd backend
 python scripts/generate_word_lists.py
 ```
+
+## Practice run (temporary)
+
+For a scripted demo with a fixed secret and no mutations, start a practice game and type these **8 guesses in order** (one per attempt). **Each word differs from the next by exactly one letter**; all are valid Webster/ENABLE dictionary words:
+
+| # | Guess |
+|---|-------|
+| 1 | could |
+| 2 | would |
+| 3 | wound |
+| 4 | sound |
+| 5 | round |
+| 6 | pound |
+| 7 | found |
+| 8 | **bound** |
+
+The secret is always **bound** — you win on the 8th guess.
+
+Regenerate a new chain (after updating word lists):
+
+```bash
+cd backend
+python scripts/find_practice_chain.py
+```
+
+Start practice mode with curl:
+
+```bash
+curl -X POST http://localhost:5000/api/new-game \
+  -H "Content-Type: application/json" \
+  -d "{\"practice\": true}"
+```
