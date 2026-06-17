@@ -28,6 +28,18 @@ const FEEDBACK_LABELS = {
 /** Wordle-style priority when merging letter colors (higher wins). */
 const KEY_PRIORITY = { green: 3, yellow: 2, gray: 1 };
 
+/** Temporary built-in practice words (matches backend PRACTICE_GUESS_CHAIN). */
+const DEFAULT_PRACTICE_CHAIN = [
+  "crane",
+  "slate",
+  "trace",
+  "bread",
+  "flint",
+  "storm",
+  "gloom",
+  "ghost",
+];
+
 /** Delay before stripping stale yellow from keys after a mutation. */
 const MUTATION_KEYBOARD_DELAY_MS = 550;
 
@@ -82,6 +94,9 @@ let stopwatchStartMs = null;
 let stopwatchElapsedMs = 0;
 /** Letters from the most recently submitted guess (highlighted until next attempt starts). */
 let lastSubmittedLetters = [];
+/** Built-in practice chain (mirrors backend PRACTICE_GUESS_CHAIN). */
+let practiceChain = [...DEFAULT_PRACTICE_CHAIN];
+let isPracticeMode = false;
 
 /* ==========================================================================
    DOM references
@@ -105,6 +120,9 @@ const themeToggleBtn = document.getElementById("theme-toggle");
 const helpBtn = document.getElementById("help-btn");
 const helpPanel = document.getElementById("help-panel");
 const helpCloseBtn = document.getElementById("help-close");
+const practicePanel = document.getElementById("practice-panel");
+const practiceChainEl = document.getElementById("practice-chain");
+const startPracticeBtn = document.getElementById("start-practice-btn");
 
 /* ==========================================================================
    Theme (light default — Freshly Squeezed palette; dark via toggle)
@@ -226,15 +244,22 @@ function buildGrid() {
   }
 }
 
-/** Scroll the guess area so the active row stays vertically centered. */
+/** Scroll the guess area only if the active row is clipped (no forced jump to bottom). */
 function scrollToCurrentRow() {
   const row = gridEl.querySelector(`[data-row="${currentRow}"]`);
   if (!row || !gridScrollEl) return;
 
+  const pad = 8;
   const rowTop = row.offsetTop;
-  const rowHeight = row.offsetHeight;
-  const viewHeight = gridScrollEl.clientHeight;
-  gridScrollEl.scrollTop = rowTop - viewHeight / 2 + rowHeight / 2;
+  const rowBottom = rowTop + row.offsetHeight;
+  const scrollTop = gridScrollEl.scrollTop;
+  const viewBottom = scrollTop + gridScrollEl.clientHeight;
+
+  if (rowTop - pad < scrollTop) {
+    gridScrollEl.scrollTop = Math.max(0, rowTop - pad);
+  } else if (rowBottom + pad > viewBottom) {
+    gridScrollEl.scrollTop = rowBottom + pad - gridScrollEl.clientHeight;
+  }
 }
 
 /** Build the five known-state (locked letter) tiles. */
@@ -400,6 +425,7 @@ function paintKeyboard(state, options = {}) {
       staleSet.has(letter) && prev === "yellow" && next !== "yellow" && next !== "green";
 
     key.classList.remove("green", "yellow", "gray", "key-stale-yellow", "key-updated");
+    const keepRecent = key.classList.contains("key-recent");
 
     if (shouldFadeYellow) {
       key.classList.add("key-stale-yellow");
@@ -415,40 +441,60 @@ function paintKeyboard(state, options = {}) {
       key.classList.add(next);
     }
 
+    if (keepRecent) {
+      key.classList.add("key-recent");
+    }
+
     const label = next ? FEEDBACK_LABELS[next] : "unused";
     key.setAttribute("aria-label", `Letter ${letter}, ${label}`);
   });
 }
 
-/** Sync keyboard colors from submitted grid rows (matches tile colors). */
-function rebuildKeyboardFromGrid() {
-  paintKeyboard(buildKeyboardStateFromGrid());
+/** Merge grid colors with server state; server wins for yellow/gray when not green. */
+function buildFinalKeyboardState(serverState = {}) {
+  const fromGrid = buildKeyboardStateFromGrid();
+  const letters = new Set([
+    ...Object.keys(fromGrid),
+    ...Object.keys(serverState),
+  ]);
+  const final = {};
+
+  for (const letter of letters) {
+    if (fromGrid[letter] === "green" || serverState[letter] === "green") {
+      final[letter] = "green";
+    } else if (serverState[letter]) {
+      final[letter] = serverState[letter];
+    } else if (fromGrid[letter]) {
+      final[letter] = fromGrid[letter];
+    }
+  }
+
+  return final;
 }
 
-/**
- * After a guess: sync keyboard to grid.
- * If the secret mutated, fade stale yellow on the replaced letter only.
- */
-function updateKeyboardAfterGuess(data) {
-  rebuildKeyboardFromGrid();
-
-  if (data.mutated_position == null || !data.mutated_from) return;
-
-  setTimeout(() => {
-    const gridState = buildKeyboardStateFromGrid();
-    const postState = data.keyboard_state || {};
-    const fromLetter = data.mutated_from.toLowerCase();
-
-    if (gridState[fromLetter] === "yellow" && postState[fromLetter] !== "yellow") {
-      delete gridState[fromLetter];
-      if (postState[fromLetter]) {
-        gridState[fromLetter] = postState[fromLetter];
-      }
-      paintKeyboard(gridState, { animateStaleFor: [fromLetter] });
-    } else {
-      rebuildKeyboardFromGrid();
+/** Letters whose keyboard yellow is removed by the latest server state. */
+function findStaleYellowLetters(nextState) {
+  const stale = [];
+  keyboardEl.querySelectorAll(".key").forEach((key) => {
+    const letter = key.dataset.key;
+    if (!letter || letter === "Enter" || letter === "Backspace") return;
+    if (
+      key.classList.contains("yellow") &&
+      nextState[letter] !== "yellow" &&
+      nextState[letter] !== "green"
+    ) {
+      stale.push(letter);
     }
-  }, MUTATION_KEYBOARD_DELAY_MS);
+  });
+  return stale;
+}
+
+/** Re-apply amber ring on keys from the last submitted guess. */
+function reapplyRecentKeyHighlight() {
+  lastSubmittedLetters.forEach((letter) => {
+    const key = getKeyElement(letter);
+    if (key) key.classList.add("key-recent");
+  });
 }
 
 /** Strip all feedback colors from keyboard keys (new game). */
@@ -458,9 +504,19 @@ function resetKeyboardColors() {
   });
 }
 
-/** Highlight keys used in the previous submitted guess (palette amber ring). */
+/**
+ * After a guess: keyboard reflects current secret (server) while keeping greens from grid.
+ * Stale yellows (e.g. R after heron) downgrade when no longer in the word.
+ */
+function updateKeyboardAfterGuess(data) {
+  const finalState = buildFinalKeyboardState(data.keyboard_state || {});
+  const stale = findStaleYellowLetters(finalState);
+  paintKeyboard(finalState, { animateStaleFor: stale });
+  reapplyRecentKeyHighlight();
+}
+
+/** Highlight keys from the last submitted guess until the next guess is submitted. */
 function highlightRecentKeys(letters) {
-  clearRecentKeyHighlight();
   lastSubmittedLetters = [...letters];
   lastSubmittedLetters.forEach((letter) => {
     const key = getKeyElement(letter);
@@ -468,19 +524,12 @@ function highlightRecentKeys(letters) {
   });
 }
 
-/** Remove previous-guess highlight when the player starts a new attempt. */
+/** Clear amber recent-key highlight (new game only). */
 function clearRecentKeyHighlight() {
   lastSubmittedLetters = [];
   keyboardEl.querySelectorAll(".key-recent").forEach((key) => {
     key.classList.remove("key-recent");
   });
-}
-
-/** Called when the player begins typing a new guess. */
-function onNewAttemptInput() {
-  if (lastSubmittedLetters.length > 0) {
-    clearRecentKeyHighlight();
-  }
 }
 
 /* ==========================================================================
@@ -605,11 +654,39 @@ function resetUI() {
   hideModal();
   resetStopwatch();
   resetKeyboardColors();
+  clearRecentKeyHighlight();
   buildGrid();
   buildKnownStateRow();
   attemptsRemainingEl.textContent = String(MAX_ROWS);
   setInputEnabled(true);
   scrollToCurrentRow();
+}
+
+/** Render the practice word chain; highlight the word for the current row. */
+function renderPracticeChain() {
+  if (!practiceChainEl) return;
+
+  practiceChainEl.innerHTML = "";
+  practiceChain.forEach((word, index) => {
+    const item = document.createElement("li");
+    item.textContent = word.toUpperCase();
+    item.dataset.index = String(index);
+    if (isPracticeMode && index === currentRow) {
+      item.classList.add("practice-chain-current");
+    } else if (isPracticeMode && index < currentRow) {
+      item.classList.add("practice-chain-done");
+    }
+    practiceChainEl.appendChild(item);
+  });
+}
+
+function setPracticeMode(active, chain = null) {
+  isPracticeMode = active;
+  if (Array.isArray(chain) && chain.length) {
+    practiceChain = chain;
+  }
+  practicePanel?.classList.toggle("practice-panel-active", active);
+  renderPracticeChain();
 }
 
 /* ==========================================================================
@@ -643,16 +720,24 @@ async function apiRequest(path, options = {}) {
 }
 
 /** Request a new game_id from the server and start the stopwatch. */
-async function startNewGame() {
+async function startNewGame(options = {}) {
+  const practice = options.practice === true;
   resetUI();
+  setPracticeMode(false);
   setInputEnabled(false);
-  showError("Starting new game…");
+  showError(practice ? "Starting practice run…" : "Starting new game…");
 
   try {
-    const data = await apiRequest("/api/new-game", { method: "POST", body: "{}" });
+    const body = practice ? JSON.stringify({ practice: true }) : "{}";
+    const data = await apiRequest("/api/new-game", { method: "POST", body });
     gameId = data.game_id;
     attemptsRemainingEl.textContent = String(data.max_attempts);
     clearError();
+
+    if (data.practice_mode && Array.isArray(data.practice_chain)) {
+      setPracticeMode(true, data.practice_chain);
+    }
+
     startStopwatch();
     setInputEnabled(true);
     scrollToCurrentRow();
@@ -660,6 +745,11 @@ async function startNewGame() {
     showError(err.message);
     setInputEnabled(false);
   }
+}
+
+/** Start the built-in scripted practice scenario. */
+function startPracticeGame() {
+  startNewGame({ practice: true });
 }
 
 /** Submit the current 5-letter guess to the API and update the board. */
@@ -697,7 +787,8 @@ async function submitGuess() {
 
     currentGuess = "";
     currentRow += 1;
-    scrollToCurrentRow();
+    renderPracticeChain();
+    requestAnimationFrame(() => scrollToCurrentRow());
 
     if (data.status === "won") {
       setInputEnabled(false);
@@ -746,7 +837,6 @@ function handleKeyPress(key) {
   const letter = sanitizeInput(key);
   if (!letter || currentGuess.length >= WORD_LENGTH) return;
 
-  if (currentGuess.length === 0) onNewAttemptInput();
   currentGuess += letter;
   renderCurrentGuess();
   clearError();
@@ -775,7 +865,6 @@ function handlePhysicalKeyboard(event) {
   if (!letter || currentGuess.length >= WORD_LENGTH) return;
 
   event.preventDefault();
-  if (currentGuess.length === 0) onNewAttemptInput();
   currentGuess += letter;
   renderCurrentGuess();
   clearError();
@@ -793,10 +882,12 @@ helpCloseBtn.addEventListener("click", closeHelpPanel);
 helpPanel.addEventListener("click", (event) => {
   if (event.target === helpPanel) closeHelpPanel();
 });
-restartBtn.addEventListener("click", startNewGame);
+restartBtn.addEventListener("click", () => startNewGame());
+startPracticeBtn.addEventListener("click", startPracticeGame);
 document.addEventListener("keydown", handlePhysicalKeyboard);
 
 buildGrid();
 buildKnownStateRow();
 buildKeyboard();
+renderPracticeChain();
 startNewGame();

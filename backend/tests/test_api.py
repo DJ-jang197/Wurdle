@@ -116,6 +116,36 @@ def test_in_progress_no_secret(client, monkeypatch):
     assert "keyboard_state" in data
 
 
+def test_practice_mode_sets_secret(client):
+    resp = client.post("/api/new-game", json={"practice": True})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    game = get_game(data["game_id"])
+    assert game.secret == "ghost"
+    assert game.practice_mode is True
+    assert data["practice_mode"] is True
+    assert len(data["practice_chain"]) == 8
+    assert data["practice_chain"][-1] == "ghost"
+
+
+def test_practice_chain_wins_on_eighth_guess(client):
+    from game_logic import PRACTICE_GUESS_CHAIN
+
+    new_resp = client.post("/api/new-game", json={"practice": True})
+    game_id = new_resp.get_json()["game_id"]
+
+    for i, word in enumerate(PRACTICE_GUESS_CHAIN):
+        resp = client.post("/api/guess", json={"game_id": game_id, "guess": word})
+        data = resp.get_json()
+        assert resp.status_code == 200
+        assert data.get("mutated_position") is None
+        if i < len(PRACTICE_GUESS_CHAIN) - 1:
+            assert data["status"] == "in_progress"
+        else:
+            assert data["status"] == "won"
+            assert data["secret_word"] == "ghost"
+
+
 def test_win_includes_secret_timeline(client, monkeypatch):
     new_resp = client.post("/api/new-game", json={})
     game_id = new_resp.get_json()["game_id"]

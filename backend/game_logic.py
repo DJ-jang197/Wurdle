@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Literal
 
-from word_loader import is_valid_guess, pick_random_answer
+from word_loader import get_answers, is_valid_guess, pick_random_answer
 
 WORD_LENGTH = 5
 MAX_ATTEMPTS = 8
@@ -17,6 +17,19 @@ Feedback = Literal["green", "yellow", "gray"]
 GameStatus = Literal["in_progress", "won", "lost"]
 
 _games: dict[str, "GameState"] = {}
+
+# Temporary built-in practice scenario (fixed secret, no mutations, 8-word chain).
+PRACTICE_ANSWER = "ghost"
+PRACTICE_GUESS_CHAIN = [
+    "crane",
+    "slate",
+    "trace",
+    "bread",
+    "flint",
+    "storm",
+    "gloom",
+    "ghost",
+]
 
 
 def score_guess(secret: str, guess: str) -> list[Feedback]:
@@ -94,6 +107,7 @@ class GameState:
     status: GameStatus = "in_progress"
     guess_history: list[str] = field(default_factory=list)
     secret_timeline: list[dict] = field(default_factory=list)
+    practice_mode: bool = False
 
     def apply_guess(self, guess: str) -> dict:
         """Process a guess and return the API response payload."""
@@ -126,7 +140,7 @@ class GameState:
             self.status = "won"
         elif self.attempts_used >= MAX_ATTEMPTS:
             self.status = "lost"
-        else:
+        elif not self.practice_mode:
             keyboard_pre_mutation = compute_keyboard_state(
                 self.secret, self.guess_history, self.locked
             )
@@ -177,6 +191,19 @@ def create_game() -> GameState:
     secret = pick_random_answer()
     game = GameState(game_id=game_id, secret=secret)
     game.secret_timeline.append({"after_attempt": 0, "secret": secret})
+    _games[game_id] = game
+    return game
+
+
+def create_practice_game() -> GameState:
+    """Scripted practice game: fixed secret, no mutations, win on the 8th chain word."""
+    game_id = str(uuid.uuid4())
+    game = GameState(
+        game_id=game_id,
+        secret=PRACTICE_ANSWER,
+        practice_mode=True,
+    )
+    game.secret_timeline.append({"after_attempt": 0, "secret": PRACTICE_ANSWER})
     _games[game_id] = game
     return game
 

@@ -7,8 +7,10 @@ from flask_cors import CORS
 
 from game_logic import (
     MAX_ATTEMPTS,
+    PRACTICE_GUESS_CHAIN,
     WORD_LENGTH,
     create_game,
+    create_practice_game,
     get_game,
     process_guess,
 )
@@ -36,12 +38,26 @@ def static_files(filename):
 
 @app.route("/api/new-game", methods=["POST"])
 def new_game():
+    data = request.get_json(silent=True) or {}
+    if data.get("practice"):
+        game = create_practice_game()
+        return jsonify(
+            {
+                "game_id": game.game_id,
+                "word_length": WORD_LENGTH,
+                "max_attempts": MAX_ATTEMPTS,
+                "practice_mode": True,
+                "practice_chain": PRACTICE_GUESS_CHAIN,
+            }
+        )
+
     game = create_game()
     return jsonify(
         {
             "game_id": game.game_id,
             "word_length": WORD_LENGTH,
             "max_attempts": MAX_ATTEMPTS,
+            "practice_mode": False,
         }
     )
 

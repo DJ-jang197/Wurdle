@@ -59,6 +59,18 @@
       <div id="error-message" class="error-message" role="alert" aria-live="assertive" hidden></div>
     </div>
 
+    <section id="practice-panel" class="practice-panel" aria-label="Practice run">
+      <p class="practice-panel-title">Temporary practice run</p>
+      <p class="practice-panel-hint">
+        One word per guess below — these are <strong>what you type</strong>, not the secret changing.
+        The secret is always <strong>GHOST</strong> and does not mutate in practice mode.
+        Win by typing <strong>GHOST</strong> on your 8th guess.
+      </p>
+      <p class="practice-panel-label">Your guesses (in order):</p>
+      <ol id="practice-chain" class="practice-chain"></ol>
+      <button id="start-practice-btn" type="button" class="practice-start-btn">Start practice run</button>
+    </section>
+
     <section class="grid-section" aria-label="Guess grid">
       <h2 class="visually-hidden">Guesses</h2>
       <div id="grid-scroll" class="grid-scroll">
@@ -76,11 +88,20 @@
       <ol class="help-rules">
         <li>Guess the <strong>5-letter</strong> secret word in <strong>8 tries</strong>.</li>
         <li>Each guess must be a valid English dictionary word.</li>
-        <li>Tiles turn <span class="swatch correct">orange</span> if the letter is correct, <span class="swatch present">yellow</span> if it is in the word but wrong spot, and <span class="swatch absent">gray</span> if it is not in the word.</li>
-        <li><strong>Green locks a letter.</strong> Locked letters appear in the row above and never mutate again.</li>
-        <li>After each wrong guess, one <em>unlocked</em> letter in the secret randomly changes — watch for the glow on the locked row.</li>
+        <li>Tile colors mean:
+          <ul class="color-legend">
+            <li><span class="legend-box correct" aria-hidden="true"></span> Orange — correct letter, correct spot</li>
+            <li><span class="legend-box present" aria-hidden="true"></span> Yellow — letter is in the word, wrong spot</li>
+            <li><span class="legend-box absent" aria-hidden="true"></span> Gray — letter is not in the word</li>
+          </ul>
+        </li>
+        <li><strong>Orange locks a letter.</strong> Locked letters appear above and never mutate again.</li>
+        <li>After each wrong guess, one unlocked letter in the secret randomly changes — watch for the glow on the locked row.</li>
         <li>Win by matching the current secret exactly. Your <strong>score</strong> is your time (lower is better).</li>
       </ol>
+      <div class="practice-note">
+        <strong>Practice run:</strong> the panel above the grid lists 8 guesses to type in order against a fixed secret (<strong>GHOST</strong>). In normal games, only <strong>one</strong> unlocked letter in the secret changes after each wrong guess.
+      </div>
     </div>
   </div>
 

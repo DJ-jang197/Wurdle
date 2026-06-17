@@ -54,6 +54,14 @@ class TestMutate:
             new_secret, idx = mutate(secret, locked)
             assert new_secret[idx] != secret[idx]
 
+    def test_mutation_changes_exactly_one_letter(self):
+        secret = "crane"
+        locked = [False] * WORD_LENGTH
+        for _ in range(100):
+            new_secret, _ = mutate(secret, locked)
+            diff_count = sum(a != b for a, b in zip(secret, new_secret))
+            assert diff_count == 1
+
     def test_no_unlocked_raises(self):
         with pytest.raises(ValueError):
             mutate("crane", [True] * WORD_LENGTH)
@@ -100,6 +108,18 @@ class TestGameState:
         result = game.apply_guess("cxxxx")
         assert result["locked_positions"][0] is True
         assert result["known_state"][0] == "c"
+
+    def test_one_secret_letter_mutates_per_wrong_guess(self, monkeypatch):
+        game = GameState(game_id="test", secret="crane")
+        monkeypatch.setattr("game_logic.is_valid_guess", lambda w: True)
+        previous_secret = game.secret
+        result = game.apply_guess("xxxxx")
+        assert result["status"] == "in_progress"
+        diff_count = sum(
+            a != b for a, b in zip(previous_secret, game.secret)
+        )
+        assert diff_count == 1
+        assert result["mutated_position"] is not None
 
 
 class TestBuildKnownState:

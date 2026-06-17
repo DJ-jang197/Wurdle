@@ -69,16 +69,6 @@ Wurdle/
   README.md
 ```
 
-## API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/new-game` | POST | Start a game; returns `game_id` only |
-| `/api/guess` | POST | Submit `{ "game_id", "guess" }` |
-
-The secret word is never included in responses until the game ends (win or loss).
-
 ## Word lists
 
 - **Valid guesses** (~8,600 words): 5-letter words from the [ENABLE](https://github.com/dolph/dictionary) dictionary (Merriam-Webster Scrabble word list).
