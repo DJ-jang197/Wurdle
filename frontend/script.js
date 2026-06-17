@@ -9,7 +9,7 @@
 
 const API_BASE = window.location.origin;
 const WORD_LENGTH = 5;
-const MAX_ROWS = 8;
+const MAX_ROWS = 6;
 const THEME_STORAGE_KEY = "wurdle-theme";
 
 const KEYBOARD_ROWS = [
@@ -93,7 +93,6 @@ let lastSubmittedLetters = [];
    DOM references
    ========================================================================== */
 
-const gridScrollEl = document.getElementById("grid-scroll");
 const gridEl = document.getElementById("grid");
 const knownStateEl = document.getElementById("known-state-row");
 const keyboardEl = document.getElementById("keyboard");
@@ -231,7 +230,7 @@ function createTile(className = "") {
   return tile;
 }
 
-/** Build all 8 guess rows inside the scrollable viewport. */
+/** Build all guess rows in the grid. */
 function buildGrid() {
   gridEl.innerHTML = "";
   for (let r = 0; r < MAX_ROWS; r++) {
@@ -260,77 +259,6 @@ function buildGrid() {
 /** Return the row element for a guess index. */
 function getRowElement(rowIndex) {
   return gridEl.querySelector(`.row[data-row="${rowIndex}"]`);
-}
-
-/** Row position inside the scroll container (content coordinates). */
-function getRowTopInScroll(rowEl) {
-  const containerRect = gridScrollEl.getBoundingClientRect();
-  const rowRect = rowEl.getBoundingClientRect();
-  return rowRect.top - containerRect.top + gridScrollEl.scrollTop;
-}
-
-/** Reset the guess grid scroll position to the top. */
-function resetGridScroll() {
-  if (!gridScrollEl) return;
-  const snapTop = () => {
-    gridScrollEl.scrollTop = 0;
-  };
-  snapTop();
-  requestAnimationFrame(() => {
-    snapTop();
-    requestAnimationFrame(snapTop);
-  });
-}
-
-/**
- * Scroll only when needed so the current row and the row above are fully visible.
- * Prefers keeping the active row near the bottom without jumping to max scroll.
- */
-function scrollToCurrentRow() {
-  if (!gridScrollEl) return;
-
-  requestAnimationFrame(() => {
-    if (currentRow === 0) {
-      gridScrollEl.scrollTop = 0;
-      return;
-    }
-
-    const prevRowEl = getRowElement(currentRow - 1);
-    const currentRowEl = getRowElement(currentRow);
-    if (!currentRowEl || gridScrollEl.clientHeight <= 0) return;
-
-    const style = getComputedStyle(gridScrollEl);
-    const padTop = parseFloat(style.paddingTop) || 0;
-    const padBottom = parseFloat(style.paddingBottom) || 0;
-    const viewHeight = gridScrollEl.clientHeight;
-    const scrollTop = gridScrollEl.scrollTop;
-    const viewBottom = scrollTop + viewHeight;
-
-    const currTop = getRowTopInScroll(currentRowEl);
-    const currBottom = currTop + currentRowEl.offsetHeight;
-    const prevTop = prevRowEl ? getRowTopInScroll(prevRowEl) : currTop;
-    const prevBottom = prevRowEl
-      ? prevTop + prevRowEl.offsetHeight
-      : currTop;
-
-    const prevFullyVisible =
-      !prevRowEl ||
-      (prevTop >= scrollTop + padTop - 1 &&
-        prevBottom <= viewBottom - padBottom + 1);
-    const currFullyVisible =
-      currTop >= scrollTop + padTop - 1 &&
-      currBottom <= viewBottom - padBottom + 1;
-
-    if (prevFullyVisible && currFullyVisible) return;
-
-    let targetScrollTop = currBottom + padBottom - viewHeight;
-    if (prevRowEl && prevTop - padTop < targetScrollTop) {
-      targetScrollTop = prevTop - padTop;
-    }
-
-    const maxScrollTop = Math.max(0, gridScrollEl.scrollHeight - viewHeight);
-    gridScrollEl.scrollTop = Math.min(Math.max(0, targetScrollTop), maxScrollTop);
-  });
 }
 
 /** Build the five known-state (locked letter) tiles. */
@@ -759,7 +687,6 @@ function resetUI() {
   buildKnownStateRow();
   attemptsRemainingEl.textContent = String(MAX_ROWS);
   setInputEnabled(true);
-  resetGridScroll();
 }
 
 /* ==========================================================================
@@ -805,8 +732,6 @@ async function startNewGame() {
     clearError();
     startStopwatch();
     setInputEnabled(true);
-    resetGridScroll();
-    requestAnimationFrame(resetGridScroll);
   } catch (err) {
     showError(err.message);
     setInputEnabled(false);
@@ -848,7 +773,6 @@ async function submitGuess() {
 
     currentGuess = "";
     currentRow += 1;
-    requestAnimationFrame(() => scrollToCurrentRow());
 
     if (data.status === "won") {
       setInputEnabled(false);
@@ -950,7 +874,6 @@ document.addEventListener("keydown", handlePhysicalKeyboard);
 buildGrid();
 buildKnownStateRow();
 buildKeyboard();
-resetGridScroll();
 
 if (new URLSearchParams(window.location.search).has("test")) {
   window.__wurdleTest = {
@@ -969,9 +892,8 @@ if (new URLSearchParams(window.location.search).has("test")) {
       clearRecentKeyHighlight();
       buildGrid();
       buildKnownStateRow();
-      resetGridScroll();
       setInputEnabled(true);
-      attemptsRemainingEl.textContent = "8";
+      attemptsRemainingEl.textContent = String(MAX_ROWS);
     },
     /** Return CSS class names on a keyboard letter key (for assertions). */
     keyClasses(letter) {

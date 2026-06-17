@@ -1,4 +1,4 @@
-"""Browser tests for grid scroll behavior (requires playwright)."""
+"""Browser tests for full-grid layout (requires playwright)."""
 
 from __future__ import annotations
 
@@ -27,20 +27,35 @@ def live_server_url():
     yield f"http://127.0.0.1:{port}"
 
 
-def _grid_scroll_top(page) -> float:
-    return page.evaluate("() => document.getElementById('grid-scroll').scrollTop")
-
-
-def _row_tops(page) -> list[float]:
+def _layout_metrics(page) -> dict:
     return page.evaluate(
         """() => {
-          const scroller = document.getElementById('grid-scroll');
-          const grid = document.getElementById('grid');
-          const cRect = scroller.getBoundingClientRect();
-          return [...grid.querySelectorAll('.row[data-row]')].map((row) => {
-            const r = row.getBoundingClientRect();
-            return r.top - cRect.top + scroller.scrollTop;
-          });
+          const app = document.querySelector('.app');
+          const gridSection = document.querySelector('.grid-section');
+          const keyboard = document.getElementById('keyboard');
+          const rows = [...document.querySelectorAll('.row[data-row]')];
+          if (!app || !gridSection || !keyboard || rows.length !== 6) {
+            return { ok: false, reason: 'missing elements' };
+          }
+          const appRect = app.getBoundingClientRect();
+          const gridRect = gridSection.getBoundingClientRect();
+          const kbRect = keyboard.getBoundingClientRect();
+          const firstRow = rows[0].getBoundingClientRect();
+          const lastRow = rows[5].getBoundingClientRect();
+          const overflowY = getComputedStyle(gridSection).overflowY;
+          const rowsInsideGrid =
+            firstRow.top >= gridRect.top - 1 &&
+            lastRow.bottom <= gridRect.bottom + 1;
+          const fitsViewport =
+            appRect.top <= firstRow.top + 1 &&
+            kbRect.bottom <= appRect.bottom + 1;
+          return {
+            ok: rowsInsideGrid && fitsViewport && overflowY !== 'auto',
+            rowsInsideGrid,
+            fitsViewport,
+            overflowY,
+            rowCount: rows.length,
+          };
         }"""
     )
 
@@ -51,45 +66,44 @@ def page(live_server_url):
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 420, "height": 860})
         page.goto(live_server_url)
-        page.wait_for_selector("#grid-scroll")
+        page.wait_for_selector(".grid-section")
         page.wait_for_function(
-            "() => document.getElementById('attempts-remaining')?.textContent === '8'"
+            "() => document.getElementById('attempts-remaining')?.textContent === '6'"
         )
         yield page
         browser.close()
 
 
-def test_grid_starts_at_top(page):
-    assert _grid_scroll_top(page) == 0
+def test_all_six_rows_visible_on_load(page):
+    metrics = _layout_metrics(page)
+    assert metrics["ok"], metrics
 
 
-def test_grid_stays_at_top_after_layout(page):
-    page.wait_for_timeout(400)
-    assert _grid_scroll_top(page) == 0
-
-
-def test_scroll_shows_current_and_previous_row(page):
-    for word in ("crane", "slate"):
+def test_layout_stays_fitted_after_guesses(page):
+    for word in ("crane", "slate", "crisp"):
         page.keyboard.type(word)
         page.keyboard.press("Enter")
         page.wait_for_timeout(350)
 
-    scroll_top = _grid_scroll_top(page)
-    tops = _row_tops(page)
-    prev_top, curr_top = tops[1], tops[2]
-    viewport = page.evaluate(
-        "() => document.getElementById('grid-scroll').clientHeight"
-    )
-    prev_bottom = prev_top + page.evaluate(
-        "() => document.querySelector('[data-row=\"1\"]').offsetHeight"
-    )
-    curr_bottom = curr_top + page.evaluate(
-        "() => document.querySelector('[data-row=\"2\"]').offsetHeight"
-    )
+    metrics = _layout_metrics(page)
+    assert metrics["ok"], metrics
 
-    assert prev_top >= scroll_top - 1
-    assert curr_bottom <= scroll_top + viewport + 1
-    assert prev_bottom <= scroll_top + viewport + 1
-    assert scroll_top < page.evaluate(
-        "() => document.getElementById('grid-scroll').scrollHeight"
-    )
+
+@pytest.mark.parametrize(
+    "viewport",
+    [
+        {"width": 390, "height": 844},
+        {"width": 360, "height": 640},
+        {"width": 420, "height": 520},
+    ],
+)
+def test_layout_fits_common_viewports(live_server_url, viewport):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport=viewport)
+        page.goto(live_server_url)
+        page.wait_for_selector(".grid-section")
+        page.wait_for_timeout(300)
+        metrics = _layout_metrics(page)
+        browser.close()
+    assert metrics["ok"], metrics

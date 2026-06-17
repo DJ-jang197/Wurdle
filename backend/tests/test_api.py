@@ -3,7 +3,7 @@
 import pytest
 
 from app import app
-from game_logic import clear_games, get_game
+from game_logic import MAX_ATTEMPTS, clear_games, get_game
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def test_new_game_returns_id_not_secret(client):
     assert "secret" not in data
     assert "secret_word" not in data
     assert data["word_length"] == 5
-    assert data["max_attempts"] == 8
+    assert data["max_attempts"] == MAX_ATTEMPTS
 
 
 def test_invalid_word_does_not_consume_attempt(client, monkeypatch):
@@ -91,7 +91,7 @@ def test_loss_reveals_secret(client, monkeypatch):
 
     monkeypatch.setattr("game_logic.is_valid_guess", lambda w: True)
 
-    for _ in range(8):
+    for _ in range(MAX_ATTEMPTS):
         resp = client.post(
             "/api/guess", json={"game_id": game_id, "guess": "xxxxx"}
         )

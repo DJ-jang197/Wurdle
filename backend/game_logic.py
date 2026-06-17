@@ -13,7 +13,7 @@ from word_loader import get_answers, get_valid_guesses, is_valid_guess, pick_ran
 from practice_chain import PRACTICE_ANSWER, PRACTICE_GUESS_CHAIN, mutation_options
 
 WORD_LENGTH = 5
-MAX_ATTEMPTS = 8
+MAX_ATTEMPTS = 6
 
 GAME_TTL_SECONDS = int(os.getenv("WURDLE_GAME_TTL_HOURS", "24")) * 3600
 FINISHED_GAME_TTL_SECONDS = int(os.getenv("WURDLE_FINISHED_TTL_HOURS", "2")) * 3600

@@ -65,60 +65,52 @@
 }
 
 /* ==========================================================================
-   Layout — larger tiles in a scrollable guess area
+   Layout — all guess rows visible; tiles scale to fit viewport + keyboard
    ========================================================================== */
 
 :root {
-  --visible-grid-rows: 5;
-  --tile-gap: clamp(4px, 0.35dvh, 6px);
-  --key-gap: clamp(3px, 0.45dvh, 5px);
-  --grid-scroll-pad-y: 8px;
-  --grid-scroll-pad-x: 10px;
-  --chrome-top: clamp(2.75rem, 7dvh, 3.75rem);
-  --chrome-header: clamp(4rem, 10dvh, 5.5rem);
-  --chrome-known: clamp(2.4rem, 6dvh, 3rem);
-  --chrome-error: 1.35rem;
-  --chrome-bottom: clamp(0.35rem, 0.8dvh, 0.6rem);
-  --key-to-tile-ratio: 0.8;
+  --grid-rows: 6;
+  --tile-gap: clamp(3px, 0.3dvh, 5px);
+  --key-gap: clamp(2px, 0.35dvh, 4px);
+  --grid-pad-y: clamp(4px, 0.6dvh, 8px);
+  --grid-pad-x: clamp(6px, 1.5vw, 10px);
+  --app-pad-top: clamp(44px, 7vw, 52px);
+  --app-pad-bottom: clamp(8px, 1.5vw, 12px);
+  --app-section-gaps: calc(4 * clamp(3px, 0.8dvh, 8px));
+  --chrome-header: clamp(3.4rem, 8.5dvh, 5rem);
+  --chrome-known: clamp(2.1rem, 5dvh, 2.75rem);
+  --chrome-error: 1.25rem;
+  --chrome-bottom: clamp(0.25rem, 0.6dvh, 0.5rem);
+  --key-to-tile-ratio: 0.78;
   --fixed-chrome: calc(
-    var(--chrome-top) + var(--chrome-header) + var(--chrome-known)
-      + var(--chrome-error) + var(--chrome-bottom)
+    var(--app-pad-top) + var(--app-pad-bottom) + var(--app-section-gaps)
+      + var(--chrome-header) + var(--chrome-known) + var(--chrome-error)
+      + var(--chrome-bottom)
   );
   --tile-size: clamp(
-    30px,
+    24px,
     calc(
       (
-        100dvh - var(--fixed-chrome) - 2 * var(--grid-scroll-pad-y)
-        - 3 * var(--tile-gap) - 2 * var(--key-gap)
+        100dvh - var(--fixed-chrome) - 2 * var(--grid-pad-y)
+        - (var(--grid-rows) - 1) * var(--tile-gap) - 2 * var(--key-gap)
       )
-      / (var(--visible-grid-rows) + 3 * var(--key-to-tile-ratio))
+      / (var(--grid-rows) + 3 * var(--key-to-tile-ratio))
     ),
-    56px
+    52px
   );
   --key-height: clamp(
-    28px,
+    24px,
     calc(var(--tile-size) * var(--key-to-tile-ratio)),
-    44px
-  );
-  --grid-viewport-height: calc(
-    var(--visible-grid-rows) * var(--tile-size)
-    + (var(--visible-grid-rows) - 1) * var(--tile-gap)
-    + 2 * var(--grid-scroll-pad-y)
+    40px
   );
   --font: "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-title: "Fredoka", cursive, sans-serif;
   --app-max-width: min(100%, 540px);
-  --error-slot-height: 1.35rem;
+  --error-slot-height: 1.25rem;
   --row-label-space: calc(0.75rem + clamp(4px, 0.45vw, 7px));
   --tiles-width: calc(5 * var(--tile-size) + 4 * var(--tile-gap));
-  --grid-scrollbar-size: 12px;
-  /* Include row labels, tiles, inner padding, and scrollbar so nothing clips. */
   --board-width: calc(
-    var(--row-label-space)
-    + var(--tiles-width)
-    + 2 * var(--grid-scroll-pad-x)
-    + var(--grid-scrollbar-size)
-    + 6px
+    var(--row-label-space) + var(--tiles-width) + 2 * var(--grid-pad-x)
   );
 }
 
@@ -355,7 +347,7 @@ h1 {
 }
 
 /* ==========================================================================
-   Guess grid — all 8 rows visible; tiles scale with viewport
+   Guess grid — all 6 rows visible; tiles scale with viewport
    ========================================================================== */
 
 .grid-section {
@@ -364,42 +356,14 @@ h1 {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-}
-
-.grid-scroll {
-  width: 100%;
-  height: var(--grid-viewport-height);
-  max-height: var(--grid-viewport-height);
-  overflow-y: auto;
-  overflow-x: hidden;
-  overflow-anchor: none;
-  scrollbar-gutter: stable;
   box-sizing: border-box;
-  padding: var(--grid-scroll-pad-y) var(--grid-scroll-pad-x);
-  margin-bottom: 4px;
+  padding: var(--grid-pad-y) var(--grid-pad-x);
+  margin-bottom: 2px;
   border: 1px solid var(--palette-amber);
   outline: 2px solid var(--palette-orange);
   outline-offset: 0;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 55%, transparent);
-  scrollbar-width: thin;
-  scrollbar-color: var(--palette-amber) color-mix(in srgb, var(--palette-pale-gold) 45%, transparent);
-}
-
-.grid-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.grid-scroll::-webkit-scrollbar-thumb {
-  background: var(--palette-amber);
-  border-radius: 4px;
-  border: 1px solid var(--palette-orange);
-}
-
-.grid-scroll::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--palette-pale-gold) 35%, transparent);
-  border-radius: 4px;
-  margin: 2px 0;
 }
 
 .row {
@@ -501,7 +465,7 @@ h1 {
   gap: var(--key-gap);
   flex-shrink: 0;
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: clamp(2px, 0.4dvh, 4px);
   border-top: 2px solid var(--palette-pale-gold);
 }
 
@@ -864,13 +828,13 @@ h1 {
 
 @media (max-height: 700px) {
   :root {
-    --chrome-header: clamp(3rem, 8dvh, 4rem);
-    --grid-scroll-pad-y: 6px;
+    --chrome-header: clamp(2.8rem, 7dvh, 3.6rem);
+    --grid-pad-y: 4px;
   }
 
   .app {
     gap: 2px;
-    padding-top: 44px;
+    padding-top: 42px;
   }
 
   .tagline {
@@ -880,19 +844,20 @@ h1 {
 
 @media (max-height: 560px) {
   :root {
-    --chrome-header: clamp(2.4rem, 7dvh, 3rem);
-    --chrome-known: clamp(2rem, 5dvh, 2.5rem);
-    --key-to-tile-ratio: 0.72;
+    --chrome-header: clamp(2.2rem, 6dvh, 2.8rem);
+    --chrome-known: clamp(1.85rem, 4.5dvh, 2.25rem);
+    --chrome-error: 1.1rem;
+    --key-to-tile-ratio: 0.7;
     --tile-size: clamp(
-      26px,
+      22px,
       calc(
         (
-          100dvh - var(--fixed-chrome) - 2 * var(--grid-scroll-pad-y)
-          - 3 * var(--tile-gap) - 2 * var(--key-gap)
+          100dvh - var(--fixed-chrome) - 2 * var(--grid-pad-y)
+          - (var(--grid-rows) - 1) * var(--tile-gap) - 2 * var(--key-gap)
         )
-        / (var(--visible-grid-rows) + 3 * var(--key-to-tile-ratio))
+        / (var(--grid-rows) + 3 * var(--key-to-tile-ratio))
       ),
-      48px
+      42px
     );
   }
 
@@ -901,9 +866,32 @@ h1 {
   }
 }
 
+@media (max-height: 480px) {
+  :root {
+    --app-pad-top: 38px;
+    --app-pad-bottom: 4px;
+    --app-section-gaps: 4px;
+    --chrome-header: 2rem;
+    --chrome-known: 1.75rem;
+    --grid-pad-y: 3px;
+    --grid-pad-x: 5px;
+    --key-to-tile-ratio: 0.66;
+  }
+
+  .app {
+    gap: 1px;
+    padding-top: var(--app-pad-top);
+    padding-bottom: var(--app-pad-bottom);
+  }
+
+  .title-row {
+    font-size: clamp(1.25rem, 4.5vw, 1.6rem);
+  }
+}
+
 @media (max-width: 360px) {
   :root {
-    --grid-scroll-pad-x: 6px;
+    --grid-pad-x: 5px;
   }
 
   .key.wide {

@@ -1,6 +1,6 @@
 # Wurdle ;)
 
-A single-player Wordle-style game with a twist: after every non-winning guess, **one letter** of the secret changes — but only in positions you have not locked with a correct (orange) tile. You get **8 attempts** instead of the usual 6.
+A single-player Wordle-style game with a twist: after every non-winning guess, **one letter** of the secret changes — but only in positions you have not locked with a correct (orange) tile. You get the standard **6 attempts** to find the current secret.
 
 The secret always stays a **valid dictionary word**. Mutations move to another valid word one letter at a time (never random gibberish). Which position changes is **random among unlocked slots** — if you lock four letters (orange tiles), only the remaining `_` positions can change. The game avoids reusing past secrets when possible and, when stuck in a small word family, picks the one used longest ago.
 
@@ -18,19 +18,19 @@ The secret always stays a **valid dictionary word**. Mutations move to another v
    - **Orange / yellow** — best feedback so far from past guesses (no pale gold on keys)
    - **Yellow clears** only when a **later guess** marks that letter neutral; mutations alone do not recolor keys. Once cleared, yellow does **not** come back for that letter
    - **Amber** — used in your most recent guess with no orange or yellow yet (yellow/orange win over amber)
-7. Win by matching the **current** secret exactly. Your **score** is your elapsed time (lower is better). Lose if you use all 8 guesses.
+7. Win by matching the **current** secret exactly. Your **score** is your elapsed time (lower is better). Lose if you use all 6 guesses.
 
 Press **?** (top-right) for the full in-game rules panel.
 
 ## Interface
 
-The UI uses the **Freshly Squeezed** palette (amber `#FFBF00`, pale gold `#F2CF7E`, lemon `#FFE642`, orange `#FF7900`).
+The UI uses the **Freshly Squeezed** palette from Figma (amber `#FFBF00`, pale gold `#F2CF7E`, lemon `#FFE642`, orange `#FF7900`).
 
 | Area | What it does |
 |------|----------------|
 | **Header** | Title, tagline, attempts remaining |
 | **Locked letters** | Shows locked letters in orange; `_` for mutable slots; mutation glow on the slot that changed |
-| **Guess grid** | 8 rows with row numbers **1–8**; scroll area fits **5 rows** at a time |
+| **Guess grid** | 6 rows with row numbers **1–6**; all rows visible at once; tiles scale so the grid and keyboard fit the viewport |
 | **Keyboard** | Orange and yellow persist from guesses; amber highlights letters from your last guess only |
 | **? button** | How to play (draggable panel) |
 | **Moon / sun** | Light and dark theme |
@@ -97,7 +97,7 @@ cd backend
 pytest
 ```
 
-Includes unit tests for game logic, API, word lists, practice chains, security hardening, keyboard yellow clearing, and Playwright checks for grid scroll and keyboard feedback.
+Includes unit tests for game logic, API, word lists, practice chains, security hardening, keyboard yellow clearing, and Playwright checks for viewport layout and keyboard feedback.
 
 ## API
 
@@ -150,7 +150,9 @@ python scripts/generate_word_lists.py
 
 ## Practice mode
 
-For a scripted run with a **fixed secret** and **no mutations**, start practice mode and type these **8 guesses in order** (one per attempt). Each word differs from the next by **exactly one letter**; all are valid dictionary words:
+For a scripted run with a **fixed secret** and **no mutations**, start practice mode. The API returns an **8-word one-letter chain** as a hint (each step changes exactly one letter; all words are valid). The secret is always **bound** — you still have only **6 guesses**, so use the chain as a guide rather than typing all eight words in order.
+
+Example chain (first six guesses get you to `pound`; you need to reach `bound` within your six attempts):
 
 | # | Guess |
 |---|-------|
@@ -162,8 +164,6 @@ For a scripted run with a **fixed secret** and **no mutations**, start practice 
 | 6 | pound |
 | 7 | found |
 | 8 | **bound** |
-
-The secret is always **bound** — you win on the 8th guess.
 
 Regenerate or write a new chain (after updating word lists):
 
