@@ -104,6 +104,8 @@ const restartBtn = document.getElementById("restart-btn");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const helpBtn = document.getElementById("help-btn");
 const helpPanel = document.getElementById("help-panel");
+const helpPanelCardEl = document.getElementById("help-panel-card");
+const helpDragHandle = document.getElementById("help-drag-handle");
 const helpCloseBtn = document.getElementById("help-close");
 
 /* ==========================================================================
@@ -119,23 +121,35 @@ function initTheme() {
       : window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light";
+  applyTheme(theme, { persist: false });
+}
+
+/** Set theme on the document and sync browser chrome hints. */
+function applyTheme(theme, options = {}) {
+  const { persist = true } = options;
   document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.style.colorScheme = theme;
+  const themeColor = theme === "dark" ? "#14100a" : "#fff9eb";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
   themeToggleBtn.setAttribute(
     "aria-label",
     theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
   );
+  if (persist) {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }
+}
+
+/** Enable smooth theme transitions after the first paint. */
+function enableThemeTransitions() {
+  document.documentElement.classList.add("theme-animate");
 }
 
 /** Flip between light and dark themes; persist choice. */
 function toggleTheme() {
   const next =
     document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem(THEME_STORAGE_KEY, next);
-  themeToggleBtn.setAttribute(
-    "aria-label",
-    next === "dark" ? "Switch to light mode" : "Switch to dark mode"
-  );
+  applyTheme(next);
 }
 
 /* ==========================================================================
@@ -677,45 +691,66 @@ function renderSecretTimeline(timeline) {
   modalTimelineEl.hidden = false;
 }
 
-/** Reset draggable modal position to default center-top. */
-function resetModalPosition() {
-  modalCardEl.style.left = "50%";
-  modalCardEl.style.top = "18%";
-  modalCardEl.style.transform = "translateX(-50%)";
+/** Reset a draggable panel to its default centered position. */
+function resetPanelPosition(panelEl, top = "18%") {
+  panelEl.style.left = "50%";
+  panelEl.style.top = top;
+  panelEl.style.transform = "translateX(-50%)";
 }
 
-/** Allow dragging the game-over card by its handle so the board stays visible. */
-function initDraggableModal() {
+/** Allow dragging a fixed panel by its handle so the board stays visible. */
+function initDraggablePanel(handleEl, panelEl) {
   let dragging = false;
   let offsetX = 0;
   let offsetY = 0;
 
-  modalDragHandle.addEventListener("pointerdown", (event) => {
+  handleEl.addEventListener("pointerdown", (event) => {
     dragging = true;
-    modalDragHandle.setPointerCapture(event.pointerId);
-    const rect = modalCardEl.getBoundingClientRect();
+    handleEl.setPointerCapture(event.pointerId);
+    const rect = panelEl.getBoundingClientRect();
     offsetX = event.clientX - rect.left;
     offsetY = event.clientY - rect.top;
-    modalCardEl.style.transform = "none";
+    panelEl.style.transform = "none";
   });
 
-  modalDragHandle.addEventListener("pointermove", (event) => {
+  handleEl.addEventListener("pointermove", (event) => {
     if (!dragging) return;
-    modalCardEl.style.left = `${event.clientX - offsetX}px`;
-    modalCardEl.style.top = `${event.clientY - offsetY}px`;
+    panelEl.style.left = `${event.clientX - offsetX}px`;
+    panelEl.style.top = `${event.clientY - offsetY}px`;
   });
 
-  modalDragHandle.addEventListener("pointerup", () => {
+  handleEl.addEventListener("pointerup", () => {
     dragging = false;
   });
 
-  modalDragHandle.addEventListener("pointercancel", () => {
+  handleEl.addEventListener("pointercancel", () => {
     dragging = false;
   });
 }
 
+/** Reset draggable modal position to default center-top. */
+function resetModalPosition() {
+  resetPanelPosition(modalCardEl, "18%");
+}
+
+/** Reset draggable help panel position to default center-top. */
+function resetHelpPanelPosition() {
+  resetPanelPosition(helpPanelCardEl, "12%");
+}
+
+/** Allow dragging the game-over card by its handle so the board stays visible. */
+function initDraggableModal() {
+  initDraggablePanel(modalDragHandle, modalCardEl);
+}
+
+/** Allow dragging the how-to-play card by its handle. */
+function initDraggableHelpPanel() {
+  initDraggablePanel(helpDragHandle, helpPanelCardEl);
+}
+
 /** Open the how-to-play rules panel. */
 function openHelpPanel() {
+  resetHelpPanelPosition();
   helpPanel.hidden = false;
 }
 
@@ -942,7 +977,9 @@ function handlePhysicalKeyboard(event) {
    ========================================================================== */
 
 initTheme();
+requestAnimationFrame(() => requestAnimationFrame(enableThemeTransitions));
 initDraggableModal();
+initDraggableHelpPanel();
 themeToggleBtn.addEventListener("click", toggleTheme);
 helpBtn.addEventListener("click", openHelpPanel);
 helpCloseBtn.addEventListener("click", closeHelpPanel);

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#fff9eb">
   <title>Wurdle ;)</title>
   <script>
     (function () {
@@ -15,17 +16,34 @@
           : window.matchMedia("(prefers-color-scheme: dark)").matches
             ? "dark"
             : "light";
-      document.documentElement.setAttribute("data-theme", theme);
+      var root = document.documentElement;
+      root.setAttribute("data-theme", theme);
+      root.style.colorScheme = theme;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", theme === "dark" ? "#14100a" : "#fff9eb");
     })();
   </script>
   <style>
-    html { background-color: #fff9eb; color-scheme: light; }
-    html[data-theme="dark"] { background-color: #14100a; color-scheme: dark; }
+    html,
+    body {
+      margin: 0;
+      background-color: #fff9eb;
+      color: #2a1f0a;
+    }
+    html {
+      color-scheme: light;
+    }
+    html[data-theme="dark"],
+    html[data-theme="dark"] body {
+      background-color: #14100a;
+      color: #fff9eb;
+      color-scheme: dark;
+    }
   </style>
+  <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="top-controls">
@@ -91,30 +109,35 @@
   </div>
 
   <div id="help-panel" class="help-panel" role="dialog" aria-labelledby="help-title" hidden>
-    <div class="help-panel-inner">
+    <div id="help-panel-card" class="help-panel-inner">
+      <div id="help-drag-handle" class="modal-drag-handle" title="Drag to move">
+        <span class="modal-drag-dots" aria-hidden="true">⋯</span>
+        <span class="modal-drag-label">Drag</span>
+      </div>
       <button id="help-close" type="button" class="help-close" aria-label="Close how to play">&times;</button>
       <h2 id="help-title">How to play</h2>
       <ol class="help-rules">
-        <li>Guess the <strong>5-letter</strong> secret word in <strong>8 tries</strong>. Each guess must be a valid English dictionary word.</li>
-        <li>Tile colors (on the grid) mean:
+        <li>Guess the <strong>5-letter</strong> secret word in <strong>8 tries</strong>. Every guess must be a valid English dictionary word.</li>
+        <li><strong>Grid tile colors</strong>
           <ul class="color-legend">
-            <li><span class="legend-box correct" aria-hidden="true"></span> Orange — correct letter, correct spot</li>
-            <li><span class="legend-box present" aria-hidden="true"></span> Yellow — in the word, wrong spot</li>
-            <li><span class="legend-box absent" aria-hidden="true"></span> Brown — not in the word for that guess</li>
+            <li><span class="legend-box correct" aria-hidden="true"></span><span class="legend-text"><strong>Orange.</strong> Right letter, right place.</span></li>
+            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word, wrong place.</span></li>
+            <li><span class="legend-box absent" aria-hidden="true"></span><span class="legend-text"><strong>Tan.</strong> Not in the word for that guess.</span></li>
           </ul>
         </li>
-        <li><strong>Orange locks a letter.</strong> Locked letters appear above the grid and never mutate again.</li>
-        <li>After each wrong guess, <strong>one unlocked letter</strong> in the secret changes to another valid word. The glowing slot in the locked row shows which position changed.</li>
-        <li>Because the secret can shift, a letter marked “not in word” on one turn may become useful later — read keyboard colors with that in mind.</li>
-        <li>Keyboard colors (same as the grid tiles):
+        <li><strong>Orange locks a letter.</strong> Locked letters appear in the row above the grid and never change again.</li>
+        <li>After each wrong guess, <strong>one unlocked letter</strong> in the secret changes to another valid word. A glow on the locked row shows which spot changed.</li>
+        <li>The secret can change, so a letter marked absent on one turn may still matter on a later turn.</li>
+        <li><strong>Keyboard colors</strong>
           <ul class="color-legend">
-            <li><span class="legend-box correct" aria-hidden="true"></span> Orange — correct letter, correct spot; stays colored</li>
-            <li><span class="legend-box present" aria-hidden="true"></span> Yellow — in the word, wrong spot; stays colored</li>
-            <li><span class="legend-box absent" aria-hidden="true"></span> Brown — not in the word on your <strong>last guess only</strong>; fades to neutral next turn</li>
-            <li><span class="legend-box recent-key" aria-hidden="true"></span> Ring outline — letters from your most recent guess</li>
+            <li><span class="legend-box correct" aria-hidden="true"></span><span class="legend-text"><strong>Orange.</strong> Right letter, right place. Stays colored.</span></li>
+            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word, wrong place. Stays colored.</span></li>
+            <li><span class="legend-box absent" aria-hidden="true"></span><span class="legend-text"><strong>Tan.</strong> Feedback that the letter was not in the word on your <strong>last guess only</strong>. Fades to neutral on the next guess.</span></li>
+            <li><span class="legend-box neutral-key" aria-hidden="true"></span><span class="legend-text"><strong>Neutral.</strong> No feedback yet, or tan feedback that has faded.</span></li>
+            <li><span class="legend-box recent-key" aria-hidden="true"></span><span class="legend-text"><strong>Ring outline.</strong> Not feedback. Highlights the five letters you just submitted until your next guess. The key keeps its orange, yellow, tan, or neutral fill underneath.</span></li>
           </ul>
         </li>
-        <li>Row numbers beside the grid mark attempts <strong>1–8</strong>.</li>
+        <li>Row numbers beside the grid mark attempts <strong>1 through 8</strong>.</li>
         <li>Win by matching the current secret exactly. Your <strong>score</strong> is your time (lower is better).</li>
       </ol>
     </div>

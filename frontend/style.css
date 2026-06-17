@@ -3,13 +3,14 @@
    #FFBF00 amber | #F2CF7E pale gold | #FFE642 lemon | #FF7900 orange
    ========================================================================== */
 
-:root,
-[data-theme="light"] {
+:root {
   --palette-amber: #ffbf00;
   --palette-pale-gold: #f2cf7e;
   --palette-lemon: #ffe642;
   --palette-orange: #ff7900;
+}
 
+[data-theme="light"] {
   --bg: #fff9eb;
   --surface: #fff3d4;
   --text: #2a1f0a;
@@ -139,6 +140,9 @@ body {
   display: flex;
   justify-content: center;
   overflow: hidden;
+}
+
+html.theme-animate body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
@@ -731,10 +735,7 @@ h1 {
   inset: 0;
   z-index: 150;
   background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+  pointer-events: auto;
 }
 
 .help-panel[hidden] {
@@ -742,19 +743,25 @@ h1 {
 }
 
 .help-panel-inner {
+  position: fixed;
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 10px;
-  padding: 24px 28px;
-  max-width: 420px;
+  padding: 0 28px 24px;
+  max-width: min(90vw, 420px);
   width: 100%;
-  position: relative;
   max-height: 85dvh;
   overflow-y: auto;
+  pointer-events: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
 .help-panel-inner h2 {
   margin: 0 0 16px;
+  padding-right: 1.5rem;
   font-family: var(--font-title);
   font-weight: 500;
   color: var(--title-color);
@@ -795,10 +802,15 @@ h1 {
 
 .color-legend li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin: 0;
   font-size: 0.9rem;
+}
+
+.legend-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .legend-box {
@@ -806,15 +818,36 @@ h1 {
   width: 28px;
   height: 28px;
   border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+  border: 2px solid var(--border);
+  box-sizing: border-box;
 }
 
-.legend-box.correct { background: var(--green); }
-.legend-box.present { background: var(--yellow); }
-.legend-box.absent { background: var(--gray); }
+.legend-box.correct {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.legend-box.present {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.legend-box.absent {
+  background: var(--gray);
+  border-color: var(--gray);
+}
+
+.legend-box.neutral-key {
+  background: var(--gray-key);
+  border-color: var(--border);
+}
+
 .legend-box.recent-key {
   background: var(--gray-key);
-  box-shadow: 0 0 0 2px var(--key-recent-ring);
+  border-color: var(--border);
+  outline: 2px solid var(--key-recent-ring);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px var(--key-recent-glow);
 }
 
 /* ==========================================================================
