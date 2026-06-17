@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wurdle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="game-header">
+      <h1>Wurdle</h1>
+      <p class="tagline">The secret shifts — catch up before you run out of guesses.</p>
+
+      <div id="status-bar" class="status-bar" aria-live="polite">
+        <span id="attempts-label">Attempts remaining: <strong id="attempts-remaining">8</strong></span>
+      </div>
+    </header>
+
+    <section class="known-state-section" aria-label="Known locked letters">
+      <h2 class="visually-hidden">Known state</h2>
+      <p class="known-state-label" aria-hidden="true">Locked letters</p>
+      <div id="known-state-row" class="row known-state-row" role="group" aria-label="Locked letters in position">
+        <!-- filled by JS -->
+      </div>
+    </section>
+
+    <div id="error-message" class="error-message" role="alert" aria-live="assertive" hidden></div>
+
+    <section class="grid-section" aria-label="Guess grid">
+      <h2 class="visually-hidden">Guesses</h2>
+      <div id="grid" class="grid" role="grid" aria-label="Eight guess rows of five letters">
+        <!-- filled by JS -->
+      </div>
+    </section>
+
+    <div id="keyboard" class="keyboard" role="group" aria-label="On-screen keyboard">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <div class="modal-content">
+      <h2 id="modal-title"></h2>
+      <p id="modal-body"></p>
+      <p id="modal-score" class="score-line" hidden></p>
+      <button id="restart-btn" type="button">Play Again</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

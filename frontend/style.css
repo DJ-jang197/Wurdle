@@ -1,0 +1,358 @@
+:root {
+  --bg: #121213;
+  --surface: #1a1a1b;
+  --text: #ffffff;
+  --text-muted: #818384;
+  --border: #3a3a3c;
+  --green: #538d4e;
+  --yellow: #b59f3b;
+  --gray: #3a3a3c;
+  --gray-key: #818384;
+  --green-key: #538d4e;
+  --yellow-key: #b59f3b;
+  --error: #ff6b6b;
+  --mutation-glow: #6c5ce7;
+  --tile-size: 62px;
+  --tile-gap: 5px;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-title: "Titan One", cursive, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+.app {
+  width: 100%;
+  max-width: 500px;
+  padding: 16px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.game-header {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 2.4rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffe66d;
+  transform: rotate(-1deg);
+}
+
+.tagline {
+  margin: 8px 0 0;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.known-state-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.known-state-label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.known-state-row {
+  margin-bottom: 4px;
+}
+
+.known-state-row .tile {
+  border-style: dashed;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+}
+
+.known-state-row .tile.locked {
+  border-style: solid;
+  color: var(--text);
+  border-color: var(--green);
+}
+
+.status-bar {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.error-message {
+  width: 100%;
+  text-align: center;
+  color: var(--error);
+  font-weight: 600;
+  min-height: 1.25rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.grid-section {
+  width: 100%;
+  flex: 1;
+}
+
+.row {
+  display: flex;
+  gap: var(--tile-gap);
+  justify-content: center;
+}
+
+.row[hidden] {
+  display: none;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tile-gap);
+  width: 100%;
+}
+
+.tile {
+  width: var(--tile-size);
+  height: var(--tile-size);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  font-size: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  user-select: none;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.tile.filled {
+  border-color: var(--text-muted);
+  animation: pop 0.1s ease;
+}
+
+.tile.green {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.tile.yellow {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #fff;
+}
+
+.tile.gray {
+  background: var(--gray);
+  border-color: var(--gray);
+  color: #fff;
+}
+
+.tile.mutating {
+  animation: shuffle 0.6s ease;
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shuffle {
+  0%, 100% { transform: rotate(0deg) scale(1); box-shadow: none; }
+  25% { transform: rotate(-8deg) scale(1.1); box-shadow: 0 0 12px var(--mutation-glow); }
+  50% { transform: rotate(8deg) scale(1.15); box-shadow: 0 0 18px var(--mutation-glow); }
+  75% { transform: rotate(-4deg) scale(1.08); box-shadow: 0 0 10px var(--mutation-glow); }
+}
+
+.keyboard {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.key {
+  min-width: 43px;
+  height: 58px;
+  border: none;
+  border-radius: 4px;
+  background: var(--gray-key);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  padding: 0 8px;
+  transition: background-color 0.25s ease, opacity 0.15s ease, transform 0.2s ease;
+}
+
+.key.key-updated {
+  animation: key-flip 0.45s ease;
+}
+
+.key.key-stale-yellow {
+  animation: yellow-fade 0.35s ease forwards;
+}
+
+@keyframes key-flip {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.12) rotate(-4deg); }
+  70% { transform: scale(1.08) rotate(3deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes yellow-fade {
+  0% { background: var(--yellow-key); }
+  100% { background: var(--gray-key); }
+}
+
+.key:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.key:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.key.wide {
+  min-width: 65px;
+  font-size: 0.75rem;
+}
+
+.key.green { background: var(--green-key); }
+.key.yellow { background: var(--yellow-key); }
+.key.gray { background: var(--gray); color: #fff; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 28px;
+  text-align: center;
+  max-width: 90vw;
+}
+
+.modal-content h2 {
+  margin: 0 0 12px;
+}
+
+.modal-content p {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+}
+
+.modal-content p.score-line {
+  margin: -8px 0 20px;
+  font-size: 1.15rem;
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+#restart-btn {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#restart-btn:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 400px) {
+  :root {
+    --tile-size: 52px;
+  }
+
+  .known-state-row .tile {
+    font-size: 1.25rem;
+  }
+
+  .key {
+    min-width: 28px;
+    height: 50px;
+    font-size: 0.75rem;
+    padding: 0 4px;
+  }
+
+  .key.wide {
+    min-width: 48px;
+    font-size: 0.65rem;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+}
