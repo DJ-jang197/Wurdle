@@ -11,6 +11,7 @@ from game_logic import (
     WORD_LENGTH,
     create_game,
     create_practice_game,
+    create_test_game,
     get_game,
     process_guess,
 )
@@ -81,6 +82,27 @@ def guess():
         return jsonify(result), 400
 
     return jsonify(result)
+
+
+@app.route("/api/test/new-game", methods=["POST"])
+def test_new_game():
+    if not app.config.get("TESTING"):
+        return jsonify({"status": "error", "error": "Not available"}), 404
+
+    data = request.get_json(silent=True) or {}
+    secret = data.get("secret")
+    if not secret or len(str(secret)) != WORD_LENGTH:
+        return jsonify({"status": "error", "error": "secret must be a 5-letter word"}), 400
+
+    game = create_test_game(secret, data.get("forced_mutations") or [])
+    return jsonify(
+        {
+            "game_id": game.game_id,
+            "word_length": WORD_LENGTH,
+            "max_attempts": MAX_ATTEMPTS,
+            "practice_mode": False,
+        }
+    )
 
 
 if __name__ == "__main__":

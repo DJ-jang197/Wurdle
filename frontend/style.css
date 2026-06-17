@@ -18,7 +18,7 @@
   --border: #e8c96a;
   --green: var(--palette-orange);
   --yellow: var(--palette-lemon);
-  --gray: #c4a66a;
+  --gray: color-mix(in srgb, var(--palette-pale-gold) 72%, #a88440);
   --gray-key: var(--palette-pale-gold);
   --green-key: var(--green);
   --yellow-key: var(--yellow);
@@ -29,8 +29,10 @@
   --toggle-text: var(--text);
   --tile-text-on-color: #2a1f0a;
   --key-text-on-gray: #fff9eb;
-  --key-recent-ring: color-mix(in srgb, var(--palette-orange) 60%, transparent);
-  --key-recent-glow: color-mix(in srgb, var(--palette-amber) 40%, transparent);
+  --key-recent-bg: var(--palette-amber);
+  --key-recent-ring: var(--palette-orange);
+  --key-recent-glow: color-mix(in srgb, var(--palette-orange) 40%, transparent);
+  --key-recent-text: #2a1f0a;
 }
 
 /* ==========================================================================
@@ -45,7 +47,7 @@
   --border: #4a3a1a;
   --green: var(--palette-orange);
   --yellow: var(--palette-lemon);
-  --gray: #5c4a2a;
+  --gray: color-mix(in srgb, var(--palette-pale-gold) 38%, #3d3020);
   --gray-key: #3d3020;
   --green-key: var(--green);
   --yellow-key: var(--yellow);
@@ -56,8 +58,10 @@
   --toggle-text: var(--palette-lemon);
   --tile-text-on-color: #14100a;
   --key-text-on-gray: #fff9eb;
-  --key-recent-ring: color-mix(in srgb, var(--palette-lemon) 55%, transparent);
-  --key-recent-glow: color-mix(in srgb, var(--palette-amber) 30%, transparent);
+  --key-recent-bg: var(--palette-amber);
+  --key-recent-ring: var(--palette-orange);
+  --key-recent-glow: color-mix(in srgb, var(--palette-lemon) 50%, transparent);
+  --key-recent-text: #14100a;
 }
 
 /* ==========================================================================
@@ -544,15 +548,6 @@ h1 {
   100% { background: var(--gray-key); }
 }
 
-.key.key-fade-absent {
-  animation: absent-fade 0.4s ease forwards;
-}
-
-@keyframes absent-fade {
-  0% { background: var(--gray); color: var(--key-text-on-gray); }
-  100% { background: var(--gray-key); color: var(--text); }
-}
-
 .key:hover:not(:disabled) {
   opacity: 0.88;
 }
@@ -578,26 +573,23 @@ h1 {
   color: var(--tile-text-on-color);
 }
 
-.key.absent,
-.key.gray {
-  background: var(--gray);
-  color: var(--key-text-on-gray);
+/* Recent guess: amber fill on neutral keys, orange ring on all recent keys */
+.key.key-recent:not(.green):not(.yellow) {
+  background: var(--key-recent-bg);
+  color: var(--key-recent-text);
 }
 
-/* Recent guess: ring glow only — keep feedback colors underneath visible */
 .key.key-recent {
   outline: 2px solid var(--key-recent-ring);
   outline-offset: 1px;
-  box-shadow: 0 0 0 1px var(--key-recent-glow);
+  box-shadow: 0 0 0 2px var(--key-recent-glow);
 }
 
 .key.key-recent.green,
-.key.key-recent.yellow,
-.key.key-recent.absent,
-.key.key-recent.gray {
-  outline: 2px solid var(--key-recent-ring);
-  outline-offset: 1px;
-  box-shadow: 0 0 0 1px var(--key-recent-glow);
+.key.key-recent.yellow {
+  box-shadow:
+    0 0 0 2px var(--key-recent-bg),
+    0 0 0 4px var(--key-recent-glow);
 }
 
 /* ==========================================================================
@@ -843,11 +835,11 @@ h1 {
 }
 
 .legend-box.recent-key {
-  background: var(--gray-key);
-  border-color: var(--border);
+  background: var(--key-recent-bg);
+  border-color: var(--key-recent-ring);
   outline: 2px solid var(--key-recent-ring);
   outline-offset: 1px;
-  box-shadow: 0 0 0 1px var(--key-recent-glow);
+  box-shadow: 0 0 0 2px var(--key-recent-glow);
 }
 
 /* ==========================================================================

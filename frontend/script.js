@@ -23,11 +23,19 @@ const FEEDBACK_LABELS = {
   green: "correct",
   yellow: "present",
   gray: "absent",
-  absent: "not in word on last guess",
 };
 
 /** Wordle-style priority when merging letter colors (higher wins). */
 const KEY_PRIORITY = { green: 3, yellow: 2, gray: 1 };
+
+/** Merge one tile's color into a letter → color map (one key per letter). */
+function mergeKeyboardFeedback(state, letter, color) {
+  const key = letter.toLowerCase();
+  const prev = state[key];
+  if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
+    state[key] = color;
+  }
+}
 
 /** Physical keys that must never type into the game. */
 const IGNORED_PHYSICAL_KEYS = new Set([
@@ -80,8 +88,6 @@ let stopwatchStartMs = null;
 let stopwatchElapsedMs = 0;
 /** Letters from the most recently submitted guess (highlighted until next attempt starts). */
 let lastSubmittedLetters = [];
-/** Absent letters from the previous guess — faded to neutral on the next submit. */
-let previousAbsentLetters = [];
 
 /* ==========================================================================
    DOM references
@@ -449,52 +455,45 @@ function getTileColor(tile) {
   return null;
 }
 
-/** Build letter → color map from a single submitted row. */
+/** Build letter → color map from one row (duplicate letters take best tile color). */
 function buildKeyboardStateFromRow(rowIndex) {
   const state = {};
   const rowEl = getRowElement(rowIndex);
   if (!rowEl) return state;
   const tiles = rowEl.children;
   for (let i = 0; i < WORD_LENGTH; i++) {
-    const letter = tiles[i].textContent.trim().toLowerCase();
+    const letter = tiles[i].textContent.trim();
     const color = getTileColor(tiles[i]);
     if (!letter || !color) continue;
-    const prev = state[letter];
-    if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
-      state[letter] = color;
-    }
+    mergeKeyboardFeedback(state, letter, color);
   }
   return state;
 }
 
-/** Merge grid colors with server state; grid feedback is authoritative. */
-function buildFinalKeyboardState(serverState = {}) {
+/** Drop grid yellow when the current secret no longer contains that letter. */
+function reconcileStaleYellowWithServer(gridState, serverState = {}) {
+  const final = { ...gridState };
+
+  for (const [letter, color] of Object.entries(gridState)) {
+    if (color !== "yellow") continue;
+    const serverColor = serverState[letter];
+    if (serverColor !== "yellow" && serverColor !== "green") {
+      delete final[letter];
+    }
+  }
+
+  return final;
+}
+
+/** Merge grid colors for keyboard: orange and yellow only (no absent/tan on keys). */
+function buildFinalKeyboardState() {
   const final = {};
 
-  // Greens and yellows persist across guesses (Wordle-style).
   for (let r = 0; r <= currentRow; r++) {
     const rowState = buildKeyboardStateFromRow(r);
     for (const [letter, color] of Object.entries(rowState)) {
       if (color === "gray") continue;
-      const prev = final[letter];
-      if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
-        final[letter] = color;
-      }
-    }
-  }
-
-  // Temporary "not in word" on keyboard only (distinct from tile gray).
-  const latestRow = buildKeyboardStateFromRow(currentRow);
-  for (const [letter, color] of Object.entries(latestRow)) {
-    if (color === "gray" && final[letter] !== "green" && final[letter] !== "yellow") {
-      final[letter] = "absent";
-    }
-  }
-
-  // After a mutation, downgrade stale yellows when the server rescored them absent.
-  for (const [letter, serverColor] of Object.entries(serverState)) {
-    if (final[letter] === "yellow" && serverColor === "gray") {
-      final[letter] = "absent";
+      mergeKeyboardFeedback(final, letter, color);
     }
   }
 
@@ -505,8 +504,6 @@ function buildFinalKeyboardState(serverState = {}) {
 function getKeyColor(keyEl) {
   if (keyEl.classList.contains("green")) return "green";
   if (keyEl.classList.contains("yellow")) return "yellow";
-  if (keyEl.classList.contains("absent")) return "absent";
-  if (keyEl.classList.contains("gray")) return "gray";
   return null;
 }
 
@@ -520,9 +517,8 @@ function getKeyElement(letter) {
  * Optionally animate keys that lost yellow after a mutation.
  */
 function paintKeyboard(state, options = {}) {
-  const { animateStaleFor = [], fadeAbsentFor = [] } = options;
+  const { animateStaleFor = [] } = options;
   const staleSet = new Set(animateStaleFor.map((l) => l.toLowerCase()));
-  const fadeAbsentSet = new Set(fadeAbsentFor.map((l) => l.toLowerCase()));
 
   keyboardEl.querySelectorAll(".key").forEach((key) => {
     const letter = key.dataset.key;
@@ -532,19 +528,9 @@ function paintKeyboard(state, options = {}) {
     const next = state[letter] || null;
     const shouldFadeYellow =
       staleSet.has(letter) && prev === "yellow" && next !== "yellow" && next !== "green";
-    const shouldFadeAbsent =
-      fadeAbsentSet.has(letter) && prev === "absent" && next !== "absent";
 
-    key.classList.remove(
-      "green",
-      "yellow",
-      "gray",
-      "absent",
-      "key-stale-yellow",
-      "key-fade-absent",
-      "key-updated"
-    );
-    const keepRecent = key.classList.contains("key-recent");
+    key.classList.remove("green", "yellow", "key-stale-yellow", "key-updated", "key-recent");
+    const recentSet = new Set(lastSubmittedLetters.map((l) => l.toLowerCase()));
 
     if (shouldFadeYellow) {
       key.classList.add("key-stale-yellow");
@@ -556,21 +542,11 @@ function paintKeyboard(state, options = {}) {
         },
         { once: true }
       );
-    } else if (shouldFadeAbsent) {
-      key.classList.add("absent", "key-fade-absent");
-      key.addEventListener(
-        "animationend",
-        () => {
-          key.classList.remove("key-fade-absent", "absent");
-          if (next) key.classList.add(next);
-        },
-        { once: true }
-      );
     } else if (next) {
       key.classList.add(next);
     }
 
-    if (keepRecent) {
+    if (recentSet.has(letter)) {
       key.classList.add("key-recent");
     }
 
@@ -588,8 +564,7 @@ function findStaleYellowLetters(nextState) {
     if (
       key.classList.contains("yellow") &&
       nextState[letter] !== "yellow" &&
-      nextState[letter] !== "green" &&
-      nextState[letter] !== "absent"
+      nextState[letter] !== "green"
     ) {
       stale.push(letter);
     }
@@ -597,52 +572,24 @@ function findStaleYellowLetters(nextState) {
   return stale;
 }
 
-/** Re-apply amber ring on keys from the last submitted guess. */
-function reapplyRecentKeyHighlight() {
-  lastSubmittedLetters.forEach((letter) => {
-    const key = getKeyElement(letter);
-    if (key) key.classList.add("key-recent");
-  });
+/** Track letters from the last submitted guess; paintKeyboard applies the amber highlight. */
+function highlightRecentKeys(letters) {
+  lastSubmittedLetters = letters.map((l) => l.toLowerCase());
 }
 
 /** Strip all feedback colors from keyboard keys (new game). */
 function resetKeyboardColors() {
-  previousAbsentLetters = [];
   keyboardEl.querySelectorAll(".key").forEach((key) => {
-    key.classList.remove(
-      "green",
-      "yellow",
-      "gray",
-      "absent",
-      "key-stale-yellow",
-      "key-fade-absent",
-      "key-updated",
-      "key-recent"
-    );
+    key.classList.remove("green", "yellow", "key-stale-yellow", "key-updated", "key-recent");
   });
 }
 
-/**
- * After a guess: keyboard matches grid feedback; absent grays fade next round.
- */
-function updateKeyboardAfterGuess(data) {
-  const finalState = buildFinalKeyboardState(data.keyboard_state || {});
-  const fadeAbsent = previousAbsentLetters.filter((letter) => finalState[letter] !== "absent");
+/** After a guess: keyboard shows orange and yellow feedback from the grid. */
+function updateKeyboardAfterGuess(serverState = {}) {
+  const gridState = buildFinalKeyboardState();
+  const finalState = reconcileStaleYellowWithServer(gridState, serverState);
   const stale = findStaleYellowLetters(finalState);
-  paintKeyboard(finalState, { animateStaleFor: stale, fadeAbsentFor: fadeAbsent });
-
-  previousAbsentLetters = Object.entries(finalState)
-    .filter(([, color]) => color === "absent")
-    .map(([letter]) => letter);
-}
-
-/** Highlight keys from the last submitted guess until the next guess is submitted. */
-function highlightRecentKeys(letters) {
-  lastSubmittedLetters = [...letters];
-  lastSubmittedLetters.forEach((letter) => {
-    const key = getKeyElement(letter);
-    if (key) key.classList.add("key-recent");
-  });
+  paintKeyboard(finalState, { animateStaleFor: stale });
 }
 
 /** Clear amber recent-key highlight (new game only). */
@@ -882,8 +829,8 @@ async function submitGuess() {
     const submittedGuess = currentGuess;
 
     applyFeedbackToRow(currentRow, submittedGuess, data.feedback);
-    updateKeyboardAfterGuess(data);
     highlightRecentKeys(submittedGuess.split(""));
+    updateKeyboardAfterGuess(data.keyboard_state || {});
     updateKnownState(data.known_state, data.locked_positions);
     highlightMutatedPosition(data.mutated_position);
     attemptsRemainingEl.textContent = String(data.attempts_remaining);
@@ -993,4 +940,33 @@ buildGrid();
 buildKnownStateRow();
 buildKeyboard();
 resetGridScroll();
-startNewGame();
+
+if (new URLSearchParams(window.location.search).has("test")) {
+  window.__wurdleTest = {
+    bindGame(id) {
+      gameId = id;
+      gameOver = false;
+      isSubmitting = false;
+      currentRow = 0;
+      currentGuess = "";
+      lastSubmittedLetters = [];
+      clearError();
+      hideModal();
+      resetStopwatch();
+      resetKeyboardColors();
+      clearRecentKeyHighlight();
+      buildGrid();
+      buildKnownStateRow();
+      resetGridScroll();
+      setInputEnabled(true);
+      attemptsRemainingEl.textContent = "8";
+    },
+    keyClasses(letter) {
+      const key = keyboardEl.querySelector(`[data-key="${letter.toLowerCase()}"]`);
+      return key ? [...key.classList] : [];
+    },
+  };
+  // Skip random boot game in automated browser tests.
+} else {
+  startNewGame();
+}

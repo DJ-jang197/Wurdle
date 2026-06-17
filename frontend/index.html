@@ -121,20 +121,19 @@
         <li><strong>Grid tile colors</strong>
           <ul class="color-legend">
             <li><span class="legend-box correct" aria-hidden="true"></span><span class="legend-text"><strong>Orange.</strong> Right letter, right place.</span></li>
-            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word, wrong place.</span></li>
-            <li><span class="legend-box absent" aria-hidden="true"></span><span class="legend-text"><strong>Tan.</strong> Not in the word for that guess.</span></li>
+            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word, wrong place for that guess.</span></li>
+            <li><span class="legend-box absent" aria-hidden="true"></span><span class="legend-text"><strong>Pale gold.</strong> Not in the word for that guess.</span></li>
           </ul>
         </li>
         <li><strong>Orange locks a letter.</strong> Locked letters appear in the row above the grid and never change again.</li>
         <li>After each wrong guess, <strong>one unlocked letter</strong> in the secret changes to another valid word. A glow on the locked row shows which spot changed.</li>
-        <li>The secret can change, so a letter marked absent on one turn may still matter on a later turn.</li>
+        <li>The secret can change after each wrong guess. Grid tiles always show the result from when that guess was made. On the keyboard, yellow clears if that letter is no longer in the secret after a mutation.</li>
         <li><strong>Keyboard colors</strong>
           <ul class="color-legend">
-            <li><span class="legend-box correct" aria-hidden="true"></span><span class="legend-text"><strong>Orange.</strong> Right letter, right place. Stays colored.</span></li>
-            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word, wrong place. Stays colored.</span></li>
-            <li><span class="legend-box absent" aria-hidden="true"></span><span class="legend-text"><strong>Tan.</strong> Feedback that the letter was not in the word on your <strong>last guess only</strong>. Fades to neutral on the next guess.</span></li>
-            <li><span class="legend-box neutral-key" aria-hidden="true"></span><span class="legend-text"><strong>Neutral.</strong> No feedback yet, or tan feedback that has faded.</span></li>
-            <li><span class="legend-box recent-key" aria-hidden="true"></span><span class="legend-text"><strong>Ring outline.</strong> Not feedback. Highlights the five letters you just submitted until your next guess. The key keeps its orange, yellow, tan, or neutral fill underneath.</span></li>
+            <li><span class="legend-box correct" aria-hidden="true"></span><span class="legend-text"><strong>Orange.</strong> Right letter, right place on a past guess. Stays colored.</span></li>
+            <li><span class="legend-box present" aria-hidden="true"></span><span class="legend-text"><strong>Yellow.</strong> In the word at wrong place on a past guess. Stays colored unless the secret mutates that letter out.</span></li>
+            <li><span class="legend-box neutral-key" aria-hidden="true"></span><span class="legend-text"><strong>Neutral.</strong> You have no feedback for this letter yet.</span></li>
+            <li><span class="legend-box recent-key" aria-hidden="true"></span><span class="legend-text"><strong>Amber.</strong> You used this letter in your most recent guess.</span></li>
           </ul>
         </li>
         <li>Row numbers beside the grid mark attempts <strong>1 through 8</strong>.</li>

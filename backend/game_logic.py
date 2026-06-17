@@ -20,7 +20,12 @@ _games: dict[str, "GameState"] = {}
 
 
 def score_guess(secret: str, guess: str) -> list[Feedback]:
-    """Score a guess against the secret using standard Wordle rules."""
+    """Score a guess using standard Wordle rules (including duplicate letters).
+
+    Each letter in the secret can only produce one green or yellow response.
+    Extra copies of a letter in the guess are gray. Greens are matched first,
+    then yellows consume remaining secret letter counts left to right.
+    """
     secret = secret.lower()
     guess = guess.lower()
     result: list[Feedback] = ["gray"] * WORD_LENGTH
@@ -63,6 +68,17 @@ def build_known_state(secret: str, locked: list[bool]) -> list[str]:
 _FEEDBACK_PRIORITY = {"green": 3, "yellow": 2, "gray": 1}
 
 
+def merge_keyboard_feedback(
+    state: dict[str, Feedback], guess: str, feedback: list[Feedback]
+) -> None:
+    """Merge one row into keyboard state; best color wins per letter (not per tile)."""
+    for i, letter in enumerate(guess.lower()):
+        color = feedback[i]
+        current = state.get(letter)
+        if current is None or _FEEDBACK_PRIORITY[color] > _FEEDBACK_PRIORITY[current]:
+            state[letter] = color
+
+
 def compute_keyboard_state(
     secret: str, guesses: list[str], locked: list[bool]
 ) -> dict[str, Feedback]:
@@ -75,11 +91,7 @@ def compute_keyboard_state(
 
     for guess in guesses:
         feedback = score_guess(secret, guess)
-        for i, letter in enumerate(guess):
-            color = feedback[i]
-            current = state.get(letter)
-            if current is None or _FEEDBACK_PRIORITY[color] > _FEEDBACK_PRIORITY[current]:
-                state[letter] = color
+        merge_keyboard_feedback(state, guess, feedback)
 
     return state
 
@@ -94,6 +106,7 @@ class GameState:
     guess_history: list[str] = field(default_factory=list)
     secret_timeline: list[dict] = field(default_factory=list)
     practice_mode: bool = False
+    forced_mutations: list[str] = field(default_factory=list)
 
     def apply_guess(self, guess: str) -> dict:
         """Process a guess and return the API response payload."""
@@ -130,7 +143,19 @@ class GameState:
             keyboard_pre_mutation = compute_keyboard_state(
                 self.secret, self.guess_history, self.locked
             )
-            self.secret, mutated_position = mutate(self.secret, self.locked)
+            if self.forced_mutations:
+                previous_secret = self.secret
+                self.secret = self.forced_mutations.pop(0)
+                mutated_position = next(
+                    (
+                        i
+                        for i in range(WORD_LENGTH)
+                        if not self.locked[i] and previous_secret[i] != self.secret[i]
+                    ),
+                    None,
+                )
+            else:
+                self.secret, mutated_position = mutate(self.secret, self.locked)
 
         keyboard_state = compute_keyboard_state(
             self.secret, self.guess_history, self.locked
@@ -190,6 +215,20 @@ def create_practice_game() -> GameState:
         practice_mode=True,
     )
     game.secret_timeline.append({"after_attempt": 0, "secret": PRACTICE_ANSWER})
+    _games[game_id] = game
+    return game
+
+
+def create_test_game(secret: str, forced_mutations: list[str] | None = None) -> GameState:
+    """Deterministic game for automated tests (forced mutation queue optional)."""
+    game_id = str(uuid.uuid4())
+    normalized_secret = secret.lower()
+    game = GameState(
+        game_id=game_id,
+        secret=normalized_secret,
+        forced_mutations=[word.lower() for word in (forced_mutations or [])],
+    )
+    game.secret_timeline.append({"after_attempt": 0, "secret": normalized_secret})
     _games[game_id] = game
     return game
 

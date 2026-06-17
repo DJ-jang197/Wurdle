@@ -14,6 +14,7 @@ from app import app  # noqa: E402
 
 
 def _run_server(port: int) -> None:
+    app.config["TESTING"] = True
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
 
 

@@ -11,6 +11,7 @@ from game_logic import (
     build_known_state,
     clear_games,
     compute_keyboard_state,
+    merge_keyboard_feedback,
     mutate,
     score_guess,
 )
@@ -34,6 +35,68 @@ class TestScoreGuess:
 
     def test_all_gray(self):
         assert score_guess("crane", "xyzzz") == ["gray"] * WORD_LENGTH
+
+    def test_apple_secret_one_p_in_guess(self):
+        # APPLE has one P; only one P in PUPPY can be colored (green at pos 2).
+        assert score_guess("apple", "puppy") == [
+            "yellow",
+            "gray",
+            "green",
+            "gray",
+            "gray",
+        ]
+
+    def test_apple_secret_papal(self):
+        assert score_guess("apple", "papal") == [
+            "yellow",
+            "yellow",
+            "green",
+            "gray",
+            "yellow",
+        ]
+
+    def test_dread_secret_duplicate_d_in_guess(self):
+        # DREAD has D at positions 0 and 4; two D's in guess can both be green.
+        assert score_guess("dread", "ddddd") == [
+            "green",
+            "gray",
+            "gray",
+            "gray",
+            "green",
+        ]
+
+    def test_eerie_allen_duplicate_e(self):
+        # Secret has three E's; guess has two — only two yellows, not three.
+        assert score_guess("eerie", "allen") == [
+            "gray",
+            "gray",
+            "gray",
+            "yellow",
+            "gray",
+        ]
+
+    def test_case_insensitive_scoring(self):
+        assert score_guess("APPLE", "ApPlE") == ["green"] * WORD_LENGTH
+
+
+class TestKeyboardMergeDuplicates:
+    def test_row_merge_picks_best_color_for_duplicate_letter(self):
+        feedback = score_guess("apple", "puppy")
+        state: dict[str, str] = {}
+        merge_keyboard_feedback(state, "puppy", feedback)
+        assert state["p"] == "green"
+        assert state["u"] == "gray"
+        assert state["y"] == "gray"
+
+    def test_keyboard_state_dread_ddddd(self):
+        state = compute_keyboard_state("dread", ["ddddd"], [False] * WORD_LENGTH)
+        assert state["d"] == "green"
+
+    def test_keyboard_state_apple_papal(self):
+        state = compute_keyboard_state("apple", ["papal"], [False] * WORD_LENGTH)
+        assert state["p"] == "green"
+        assert state["a"] == "yellow"
+        assert state["l"] == "yellow"
 
 
 class TestMutate:
