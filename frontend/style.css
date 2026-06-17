@@ -287,6 +287,17 @@ h1 {
   border-color: var(--green);
 }
 
+.known-state-row .tile.mutation-hint {
+  border-color: var(--palette-orange);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--mutation-glow) 70%, transparent),
+    0 0 14px color-mix(in srgb, var(--mutation-glow) 55%, transparent);
+}
+
+.known-state-row .tile.locked.mutation-hint {
+  border-color: var(--palette-orange);
+}
+
 .status-bar {
   font-size: clamp(0.8rem, 2.5vw, 0.95rem);
   color: var(--text-muted);
@@ -326,6 +337,7 @@ h1 {
   max-height: var(--grid-viewport-height);
   overflow-y: auto;
   overflow-x: hidden;
+  overflow-anchor: none;
   padding: var(--grid-scroll-pad-y) var(--grid-scroll-pad-x);
   margin-bottom: 4px;
   border: 1px solid var(--palette-amber);
@@ -404,21 +416,10 @@ h1 {
   color: var(--key-text-on-gray);
 }
 
-.tile.mutating {
-  animation: shuffle 1.15s ease;
-}
-
 @keyframes pop {
   0% { transform: scale(1); }
   50% { transform: scale(1.06); }
   100% { transform: scale(1); }
-}
-
-@keyframes shuffle {
-  0%, 100% { transform: rotate(0deg) scale(1); box-shadow: none; }
-  25% { transform: rotate(-8deg) scale(1.08); box-shadow: 0 0 12px var(--mutation-glow); }
-  50% { transform: rotate(8deg) scale(1.12); box-shadow: 0 0 16px var(--mutation-glow); }
-  75% { transform: rotate(-4deg) scale(1.05); box-shadow: 0 0 10px var(--mutation-glow); }
 }
 
 /* ==========================================================================
@@ -480,6 +481,15 @@ h1 {
 @keyframes yellow-fade {
   0% { background: var(--yellow-key); }
   100% { background: var(--gray-key); }
+}
+
+.key.key-fade-gray {
+  animation: gray-fade 0.4s ease forwards;
+}
+
+@keyframes gray-fade {
+  0% { background: var(--gray); color: var(--key-text-on-gray); }
+  100% { background: var(--gray-key); color: var(--text); }
 }
 
 .key:hover:not(:disabled) {

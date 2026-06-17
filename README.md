@@ -7,7 +7,7 @@ A single-player word-guessing game based on Wordle with a twist: after every non
 1. Guess a valid 5-letter English word and press Enter.
 2. Tiles turn **green** (correct spot), **yellow** (in the word, wrong spot), or **gray** (not in the word).
 3. Green positions are **locked** and will never mutate again.
-4. After each non-winning guess, one unlocked letter in the secret changes.
+4. After each non-winning guess, one unlocked letter in the secret changes — **to another valid dictionary word**.
 5. The **known state** row shows locked letters; `_` means that spot can still shift.
 6. Win by guessing the current secret exactly; lose if you use all 8 guesses.
 
@@ -103,7 +103,8 @@ Regenerate a new chain (after updating word lists):
 
 ```bash
 cd backend
-python scripts/find_practice_chain.py
+python scripts/prepare_practice_chain.py
+python scripts/prepare_practice_chain.py --end bound --write
 ```
 
 Start practice mode with curl:

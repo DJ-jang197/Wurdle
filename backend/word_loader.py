@@ -38,4 +38,9 @@ def is_valid_guess(word: str) -> bool:
 def pick_random_answer() -> str:
     import random
 
-    return random.choice(list(get_answers()))
+    from practice_chain import get_mutable_answers
+
+    pool = list(get_mutable_answers())
+    if not pool:
+        pool = list(get_answers())
+    return random.choice(pool)

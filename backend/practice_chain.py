@@ -71,6 +71,29 @@ def neighbors(word: str, word_set: frozenset[str]) -> list[str]:
     return result
 
 
+def mutation_options(
+    secret: str,
+    locked: list[bool],
+    word_set: frozenset[str],
+) -> list[tuple[str, int]]:
+    """
+    Valid one-letter moves from `secret` at unlocked positions.
+    Returns (new_secret, mutated_index) pairs; every new_secret is in word_set.
+    """
+    options: list[tuple[str, int]] = []
+    for i in range(WORD_LENGTH):
+        if locked[i]:
+            continue
+        prefix, suffix = secret[:i], secret[i + 1 :]
+        for letter in string.ascii_lowercase:
+            if letter == secret[i]:
+                continue
+            candidate = prefix + letter + suffix
+            if candidate in word_set:
+                options.append((candidate, i))
+    return options
+
+
 def find_chains_bfs(
     end: str,
     word_set: frozenset[str],
@@ -168,6 +191,18 @@ def validate_practice_chain(
             raise ValueError(
                 f"Step {i + 1} is not one letter apart: {chain[i]!r} -> {chain[i + 1]!r}"
             )
+
+
+@lru_cache(maxsize=1)
+def get_mutable_answers() -> frozenset[str]:
+    """Answer words with at least one valid one-letter neighbor in the full dictionary."""
+    guesses = get_valid_guesses()
+    answers = get_answers()
+    return frozenset(
+        word
+        for word in answers
+        if mutation_options(word, [False] * WORD_LENGTH, guesses)
+    )
 
 
 @lru_cache(maxsize=1)

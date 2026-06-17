@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import random
-import string
 import uuid
 from dataclasses import dataclass, field
 from typing import Literal
 
-from word_loader import get_answers, is_valid_guess, pick_random_answer
+from word_loader import get_answers, get_valid_guesses, is_valid_guess, pick_random_answer
+from practice_chain import PRACTICE_ANSWER, PRACTICE_GUESS_CHAIN, mutation_options
 
 WORD_LENGTH = 5
 MAX_ATTEMPTS = 8
@@ -17,8 +17,6 @@ Feedback = Literal["green", "yellow", "gray"]
 GameStatus = Literal["in_progress", "won", "lost"]
 
 _games: dict[str, "GameState"] = {}
-
-from practice_chain import PRACTICE_ANSWER, PRACTICE_GUESS_CHAIN
 
 
 def score_guess(secret: str, guess: str) -> list[Feedback]:
@@ -46,16 +44,15 @@ def score_guess(secret: str, guess: str) -> list[Feedback]:
 
 
 def mutate(secret: str, locked: list[bool]) -> tuple[str, int]:
-    """Mutate one unlocked position to a different letter."""
-    unlocked = [i for i in range(WORD_LENGTH) if not locked[i]]
-    if not unlocked:
-        raise ValueError("No unlocked positions to mutate")
+    """Mutate one unlocked position to a different letter; result stays a valid answer word."""
+    answers = get_answers()
+    options = mutation_options(secret, locked, answers)
+    if not options:
+        options = mutation_options(secret, locked, get_valid_guesses())
+    if not options:
+        raise ValueError(f"No valid dictionary mutation from {secret!r} with locked={locked}")
 
-    index = random.choice(unlocked)
-    current = secret[index]
-    alphabet = [c for c in string.ascii_lowercase if c != current]
-    new_letter = random.choice(alphabet)
-    new_secret = secret[:index] + new_letter + secret[index + 1 :]
+    new_secret, index = random.choice(options)
     return new_secret, index
 
 

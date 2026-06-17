@@ -48,11 +48,22 @@ class TestMutate:
             assert new_secret[4] == secret[4]
 
     def test_mutation_always_changes_letter(self):
-        secret = "aaaaa"
+        secret = "crane"
         locked = [False] * WORD_LENGTH
-        for _ in range(100):
+        for _ in range(50):
             new_secret, idx = mutate(secret, locked)
             assert new_secret[idx] != secret[idx]
+
+    def test_mutation_stays_in_dictionary(self):
+        from word_loader import get_answers, get_valid_guesses
+
+        answers = get_answers()
+        guesses = get_valid_guesses()
+        secret = "crane"
+        locked = [False] * WORD_LENGTH
+        for _ in range(50):
+            new_secret, _ = mutate(secret, locked)
+            assert new_secret in answers or new_secret in guesses
 
     def test_mutation_changes_exactly_one_letter(self):
         secret = "crane"
@@ -120,6 +131,21 @@ class TestGameState:
         )
         assert diff_count == 1
         assert result["mutated_position"] is not None
+
+    def test_secret_timeline_always_valid_words(self, monkeypatch):
+        from word_loader import get_answers, get_valid_guesses
+
+        answers = get_answers()
+        guesses = get_valid_guesses()
+        game = GameState(game_id="test", secret="crane")
+        monkeypatch.setattr("game_logic.is_valid_guess", lambda w: True)
+
+        for _ in range(MAX_ATTEMPTS - 1):
+            game.apply_guess("xxxxx")
+
+        for entry in game.secret_timeline:
+            word = entry["secret"]
+            assert word in answers or word in guesses, f"Invalid secret in timeline: {word!r}"
 
 
 class TestBuildKnownState:

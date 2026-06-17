@@ -28,9 +28,6 @@ const FEEDBACK_LABELS = {
 /** Wordle-style priority when merging letter colors (higher wins). */
 const KEY_PRIORITY = { green: 3, yellow: 2, gray: 1 };
 
-/** Delay before stripping stale yellow from keys after a mutation. */
-const MUTATION_KEYBOARD_DELAY_MS = 550;
-
 /** Physical keys that must never type into the game. */
 const IGNORED_PHYSICAL_KEYS = new Set([
   "Shift",
@@ -82,6 +79,8 @@ let stopwatchStartMs = null;
 let stopwatchElapsedMs = 0;
 /** Letters from the most recently submitted guess (highlighted until next attempt starts). */
 let lastSubmittedLetters = [];
+/** Absent letters from the previous guess — faded to neutral on the next submit. */
+let previousAbsentLetters = [];
 
 /* ==========================================================================
    DOM references
@@ -226,6 +225,13 @@ function buildGrid() {
   }
 }
 
+/** Row position inside the scroll container (content coordinates). */
+function getRowTopInScroll(rowEl) {
+  const containerRect = gridScrollEl.getBoundingClientRect();
+  const rowRect = rowEl.getBoundingClientRect();
+  return rowRect.top - containerRect.top + gridScrollEl.scrollTop;
+}
+
 /** Reset the guess grid scroll position to the top. */
 function resetGridScroll() {
   if (!gridScrollEl) return;
@@ -239,34 +245,55 @@ function resetGridScroll() {
   });
 }
 
-/** Scroll the guess area only if the active row is clipped (never jump on row 0). */
+/**
+ * Scroll only when needed so the current row and the row above are fully visible.
+ * Prefers keeping the active row near the bottom without jumping to max scroll.
+ */
 function scrollToCurrentRow() {
   if (!gridScrollEl) return;
 
-  if (currentRow === 0) {
-    resetGridScroll();
-    return;
-  }
+  requestAnimationFrame(() => {
+    if (currentRow === 0) {
+      gridScrollEl.scrollTop = 0;
+      return;
+    }
 
-  const row = gridEl.querySelector(`[data-row="${currentRow}"]`);
-  if (!row) return;
+    const prevRowEl = gridEl.querySelector(`[data-row="${currentRow - 1}"]`);
+    const currentRowEl = gridEl.querySelector(`[data-row="${currentRow}"]`);
+    if (!currentRowEl || gridScrollEl.clientHeight <= 0) return;
 
-  if (gridScrollEl.clientHeight <= 0) {
-    requestAnimationFrame(scrollToCurrentRow);
-    return;
-  }
+    const style = getComputedStyle(gridScrollEl);
+    const padTop = parseFloat(style.paddingTop) || 0;
+    const padBottom = parseFloat(style.paddingBottom) || 0;
+    const viewHeight = gridScrollEl.clientHeight;
+    const scrollTop = gridScrollEl.scrollTop;
+    const viewBottom = scrollTop + viewHeight;
 
-  const pad = 8;
-  const rowTop = row.offsetTop;
-  const rowBottom = rowTop + row.offsetHeight;
-  const scrollTop = gridScrollEl.scrollTop;
-  const viewBottom = scrollTop + gridScrollEl.clientHeight;
+    const currTop = getRowTopInScroll(currentRowEl);
+    const currBottom = currTop + currentRowEl.offsetHeight;
+    const prevTop = prevRowEl ? getRowTopInScroll(prevRowEl) : currTop;
+    const prevBottom = prevRowEl
+      ? prevTop + prevRowEl.offsetHeight
+      : currTop;
 
-  if (rowTop - pad < scrollTop) {
-    gridScrollEl.scrollTop = Math.max(0, rowTop - pad);
-  } else if (rowBottom + pad > viewBottom) {
-    gridScrollEl.scrollTop = rowBottom + pad - gridScrollEl.clientHeight;
-  }
+    const prevFullyVisible =
+      !prevRowEl ||
+      (prevTop >= scrollTop + padTop - 1 &&
+        prevBottom <= viewBottom - padBottom + 1);
+    const currFullyVisible =
+      currTop >= scrollTop + padTop - 1 &&
+      currBottom <= viewBottom - padBottom + 1;
+
+    if (prevFullyVisible && currFullyVisible) return;
+
+    let targetScrollTop = currBottom + padBottom - viewHeight;
+    if (prevRowEl && prevTop - padTop < targetScrollTop) {
+      targetScrollTop = prevTop - padTop;
+    }
+
+    const maxScrollTop = Math.max(0, gridScrollEl.scrollHeight - viewHeight);
+    gridScrollEl.scrollTop = Math.min(Math.max(0, targetScrollTop), maxScrollTop);
+  });
 }
 
 /** Build the five known-state (locked letter) tiles. */
@@ -278,6 +305,7 @@ function buildKnownStateRow() {
     tile.setAttribute("aria-label", "unknown position");
     knownStateEl.appendChild(tile);
   }
+  clearMutationHint();
 }
 
 /** Render the on-screen QWERTY keyboard buttons. */
@@ -358,17 +386,24 @@ function applyFeedbackToRow(rowIndex, guess, feedback) {
   }
 }
 
-/** Play the shuffle animation on a known-state tile after mutation. */
-function animateMutation(position) {
+/** Highlight which secret position changed after the latest wrong guess. */
+function highlightMutatedPosition(position) {
+  clearMutationHint();
   if (position === undefined || position === null) return;
   const tile = knownStateEl.children[position];
   if (!tile) return;
-  tile.classList.add("mutating");
-  tile.addEventListener(
-    "animationend",
-    () => tile.classList.remove("mutating"),
-    { once: true }
+  tile.classList.add("mutation-hint");
+  tile.setAttribute(
+    "aria-label",
+    `position ${position + 1} changed on last guess`
   );
+}
+
+/** Remove mutation glow from all known-state tiles. */
+function clearMutationHint() {
+  knownStateEl.querySelectorAll(".mutation-hint").forEach((tile) => {
+    tile.classList.remove("mutation-hint");
+  });
 }
 
 /* ==========================================================================
@@ -383,24 +418,56 @@ function getTileColor(tile) {
   return null;
 }
 
-/** Merge colors from every submitted row into a letter → color map. */
-function buildKeyboardStateFromGrid() {
+/** Build letter → color map from a single submitted row. */
+function buildKeyboardStateFromRow(rowIndex) {
   const state = {};
-  for (let r = 0; r <= currentRow; r++) {
-    const rowEl = gridEl.querySelector(`[data-row="${r}"]`);
-    if (!rowEl) continue;
-    const tiles = rowEl.children;
-    for (let i = 0; i < WORD_LENGTH; i++) {
-      const letter = tiles[i].textContent.trim().toLowerCase();
-      const color = getTileColor(tiles[i]);
-      if (!letter || !color) continue;
-      const prev = state[letter];
-      if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
-        state[letter] = color;
-      }
+  const rowEl = gridEl.querySelector(`[data-row="${rowIndex}"]`);
+  if (!rowEl) return state;
+  const tiles = rowEl.children;
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    const letter = tiles[i].textContent.trim().toLowerCase();
+    const color = getTileColor(tiles[i]);
+    if (!letter || !color) continue;
+    const prev = state[letter];
+    if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
+      state[letter] = color;
     }
   }
   return state;
+}
+
+/** Merge grid colors with server state; grid feedback is authoritative. */
+function buildFinalKeyboardState(serverState = {}) {
+  const final = {};
+
+  // Greens and yellows persist across guesses (Wordle-style).
+  for (let r = 0; r <= currentRow; r++) {
+    const rowState = buildKeyboardStateFromRow(r);
+    for (const [letter, color] of Object.entries(rowState)) {
+      if (color === "gray") continue;
+      const prev = final[letter];
+      if (!prev || KEY_PRIORITY[color] > KEY_PRIORITY[prev]) {
+        final[letter] = color;
+      }
+    }
+  }
+
+  // Gray applies only to letters absent in the most recent guess.
+  const latestRow = buildKeyboardStateFromRow(currentRow);
+  for (const [letter, color] of Object.entries(latestRow)) {
+    if (color === "gray" && final[letter] !== "green" && final[letter] !== "yellow") {
+      final[letter] = "gray";
+    }
+  }
+
+  // After a mutation, downgrade stale yellows when the server rescored them gray.
+  for (const [letter, serverColor] of Object.entries(serverState)) {
+    if (final[letter] === "yellow" && serverColor === "gray") {
+      final[letter] = "gray";
+    }
+  }
+
+  return final;
 }
 
 /** Return the current feedback class on a key button, if any. */
@@ -421,8 +488,9 @@ function getKeyElement(letter) {
  * Optionally animate keys that lost yellow after a mutation.
  */
 function paintKeyboard(state, options = {}) {
-  const { animateStaleFor = [] } = options;
+  const { animateStaleFor = [], fadeAbsentFor = [] } = options;
   const staleSet = new Set(animateStaleFor.map((l) => l.toLowerCase()));
+  const fadeAbsentSet = new Set(fadeAbsentFor.map((l) => l.toLowerCase()));
 
   keyboardEl.querySelectorAll(".key").forEach((key) => {
     const letter = key.dataset.key;
@@ -432,8 +500,17 @@ function paintKeyboard(state, options = {}) {
     const next = state[letter] || null;
     const shouldFadeYellow =
       staleSet.has(letter) && prev === "yellow" && next !== "yellow" && next !== "green";
+    const shouldFadeAbsent =
+      fadeAbsentSet.has(letter) && prev === "gray" && next !== "gray";
 
-    key.classList.remove("green", "yellow", "gray", "key-stale-yellow", "key-updated");
+    key.classList.remove(
+      "green",
+      "yellow",
+      "gray",
+      "key-stale-yellow",
+      "key-fade-gray",
+      "key-updated"
+    );
     const keepRecent = key.classList.contains("key-recent");
 
     if (shouldFadeYellow) {
@@ -442,6 +519,16 @@ function paintKeyboard(state, options = {}) {
         "animationend",
         () => {
           key.classList.remove("key-stale-yellow");
+          if (next) key.classList.add(next);
+        },
+        { once: true }
+      );
+    } else if (shouldFadeAbsent) {
+      key.classList.add("gray", "key-fade-gray");
+      key.addEventListener(
+        "animationend",
+        () => {
+          key.classList.remove("key-fade-gray", "gray");
           if (next) key.classList.add(next);
         },
         { once: true }
@@ -457,28 +544,6 @@ function paintKeyboard(state, options = {}) {
     const label = next ? FEEDBACK_LABELS[next] : "unused";
     key.setAttribute("aria-label", `Letter ${letter}, ${label}`);
   });
-}
-
-/** Merge grid colors with server state; server wins for yellow/gray when not green. */
-function buildFinalKeyboardState(serverState = {}) {
-  const fromGrid = buildKeyboardStateFromGrid();
-  const letters = new Set([
-    ...Object.keys(fromGrid),
-    ...Object.keys(serverState),
-  ]);
-  const final = {};
-
-  for (const letter of letters) {
-    if (fromGrid[letter] === "green" || serverState[letter] === "green") {
-      final[letter] = "green";
-    } else if (serverState[letter]) {
-      final[letter] = serverState[letter];
-    } else if (fromGrid[letter]) {
-      final[letter] = fromGrid[letter];
-    }
-  }
-
-  return final;
 }
 
 /** Letters whose keyboard yellow is removed by the latest server state. */
@@ -508,20 +573,32 @@ function reapplyRecentKeyHighlight() {
 
 /** Strip all feedback colors from keyboard keys (new game). */
 function resetKeyboardColors() {
+  previousAbsentLetters = [];
   keyboardEl.querySelectorAll(".key").forEach((key) => {
-    key.classList.remove("green", "yellow", "gray", "key-stale-yellow", "key-updated", "key-recent");
+    key.classList.remove(
+      "green",
+      "yellow",
+      "gray",
+      "key-stale-yellow",
+      "key-fade-gray",
+      "key-updated",
+      "key-recent"
+    );
   });
 }
 
 /**
- * After a guess: keyboard reflects current secret (server) while keeping greens from grid.
- * Stale yellows (e.g. R after heron) downgrade when no longer in the word.
+ * After a guess: keyboard matches grid feedback; absent grays fade next round.
  */
 function updateKeyboardAfterGuess(data) {
   const finalState = buildFinalKeyboardState(data.keyboard_state || {});
+  const fadeAbsent = previousAbsentLetters.filter((letter) => finalState[letter] !== "gray");
   const stale = findStaleYellowLetters(finalState);
-  paintKeyboard(finalState, { animateStaleFor: stale });
-  reapplyRecentKeyHighlight();
+  paintKeyboard(finalState, { animateStaleFor: stale, fadeAbsentFor: fadeAbsent });
+
+  previousAbsentLetters = Object.entries(finalState)
+    .filter(([, color]) => color === "gray")
+    .map(([letter]) => letter);
 }
 
 /** Highlight keys from the last submitted guess until the next guess is submitted. */
@@ -715,6 +792,7 @@ async function startNewGame() {
     startStopwatch();
     setInputEnabled(true);
     resetGridScroll();
+    requestAnimationFrame(resetGridScroll);
   } catch (err) {
     showError(err.message);
     setInputEnabled(false);
@@ -751,8 +829,8 @@ async function submitGuess() {
     updateKeyboardAfterGuess(data);
     highlightRecentKeys(submittedGuess.split(""));
     updateKnownState(data.known_state, data.locked_positions);
+    highlightMutatedPosition(data.mutated_position);
     attemptsRemainingEl.textContent = String(data.attempts_remaining);
-    animateMutation(data.mutated_position);
 
     currentGuess = "";
     currentRow += 1;
