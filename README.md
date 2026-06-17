@@ -2,19 +2,23 @@
 
 A single-player Wordle-style game with a twist: after every non-winning guess, **one letter** of the secret changes — but only in positions you have not locked with a correct (orange) tile. You get **8 attempts** instead of the usual 6.
 
-The secret always stays a **valid dictionary word**. Mutations move to another valid word one letter at a time (never random gibberish).
+The secret always stays a **valid dictionary word**. Mutations move to another valid word one letter at a time (never random gibberish). Which position changes is **random** among all legal one-letter moves at unlocked slots — not tied to your last guess.
 
 ## How to play
 
 1. Guess a **5-letter** English word and press **Enter** (or use the on-screen keyboard).
-2. Tile colors on the grid:
+2. **Grid tile colors** (frozen per row when you submit):
    - **Orange** — correct letter, correct spot (locks that position)
    - **Yellow** — in the word, wrong spot
-   - **Brown** — not in the word for that guess
-3. **Orange locks a letter.** Locked letters appear in the row above the grid; `_` means that spot can still change.
-4. After each wrong guess, **one unlocked letter** in the secret mutates to another valid word. A **glowing slot** in the locked row shows which position changed.
-5. Because the secret can shift, a letter marked “not in word” on one turn may work on a later turn.
-6. Win by matching the **current** secret exactly. Your **score** is your elapsed time (lower is better). Lose if you use all 8 guesses.
+   - **Pale gold** — not in the word for that guess
+3. **Orange locks a letter.** Locked letters appear in orange in the **Locked letters** row above the grid; `_` means that spot can still change.
+4. After each wrong guess, **one unlocked letter** in the secret mutates to another valid word. A **glow** on the locked row shows which position changed.
+5. Because the secret can shift, feedback on old rows stays as it was when you played them — but the **current** secret is what matters for winning.
+6. **Keyboard colors** (separate from grid tiles):
+   - **Orange / yellow** — best feedback so far from past guesses (no pale gold on keys)
+   - **Yellow clears** when a later guess marks that letter neutral, or when a mutation removes it from the secret; once cleared, yellow does **not** come back for that letter
+   - **Amber** — used in your most recent guess with no orange or yellow yet (yellow/orange win over amber)
+7. Win by matching the **current** secret exactly. Your **score** is your elapsed time (lower is better). Lose if you use all 8 guesses.
 
 Press **?** (top-right) for the full in-game rules panel.
 
@@ -25,12 +29,14 @@ The UI uses the **Freshly Squeezed** palette (amber `#FFBF00`, pale gold `#F2CF7
 | Area | What it does |
 |------|----------------|
 | **Header** | Title, tagline, attempts remaining |
-| **Locked letters** | Known locked positions; mutation hint glows on the slot that changed |
-| **Guess grid** | 8 rows with subtle row numbers **1–8**; scroll area shows **5 rows** at a time and starts at the top |
-| **Keyboard** | Orange / yellow from earlier guesses; **warm gold** = not in word on your **last guess only** (fades next turn); **ring outline** = letters you just submitted |
-| **? button** | How to play |
+| **Locked letters** | Shows locked letters in orange; `_` for mutable slots; mutation glow on the slot that changed |
+| **Guess grid** | 8 rows with row numbers **1–8**; scroll area fits **5 rows** at a time |
+| **Keyboard** | Orange and yellow persist from guesses; amber highlights letters from your last guess only |
+| **? button** | How to play (draggable panel) |
 | **Moon / sun** | Light and dark theme |
-| **Game-over modal** | Draggable; shows result, stopwatch score, and **secret word history** (each mutation) |
+| **Game-over modal** | Draggable; result, stopwatch score, and **secret word history** (each mutation) |
+
+Light motion: tile **pop** when typing, **yellow fade** on keys when stale yellow clears, smooth **theme** transitions.
 
 ## Requirements
 
@@ -51,7 +57,7 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 
-# For browser scroll/layout tests (first time only)
+# For browser tests (first time only)
 python -m playwright install chromium
 ```
 
@@ -73,7 +79,17 @@ cd backend
 pytest
 ```
 
-Includes unit tests for game logic, API, word lists, practice chains, and Playwright checks for grid scroll behavior.
+Includes unit tests for game logic, API, word lists, practice chains, keyboard yellow clearing, and Playwright checks for grid scroll and keyboard feedback.
+
+## API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Liveness check |
+| `POST` | `/api/new-game` | Start a game (`{"practice": true}` for practice mode) |
+| `POST` | `/api/guess` | Submit a guess (`game_id`, `guess`) |
+
+The secret is never returned until the game ends (win or loss). Guess responses include `feedback`, `locked_positions`, `known_state`, `keyboard_state`, and mutation fields when applicable.
 
 ## Project structure
 
@@ -113,9 +129,9 @@ cd backend
 python scripts/generate_word_lists.py
 ```
 
-## Practice run (temporary, API only)
+## Practice mode
 
-For a scripted demo with a **fixed secret** and **no mutations**, start a practice game and type these **8 guesses in order** (one per attempt). Each word differs from the next by **exactly one letter**; all are valid dictionary words:
+For a scripted run with a **fixed secret** and **no mutations**, start practice mode and type these **8 guesses in order** (one per attempt). Each word differs from the next by **exactly one letter**; all are valid dictionary words:
 
 | # | Guess |
 |---|-------|
