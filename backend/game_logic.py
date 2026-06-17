@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import random
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Literal
 
 from word_loader import get_answers, get_valid_guesses, is_valid_guess, pick_random_answer
@@ -13,10 +15,18 @@ from practice_chain import PRACTICE_ANSWER, PRACTICE_GUESS_CHAIN, mutation_optio
 WORD_LENGTH = 5
 MAX_ATTEMPTS = 8
 
+GAME_TTL_SECONDS = int(os.getenv("WURDLE_GAME_TTL_HOURS", "24")) * 3600
+FINISHED_GAME_TTL_SECONDS = int(os.getenv("WURDLE_FINISHED_TTL_HOURS", "2")) * 3600
+MAX_GAMES = int(os.getenv("WURDLE_MAX_GAMES", "5000"))
+
 Feedback = Literal["green", "yellow", "gray"]
 GameStatus = Literal["in_progress", "won", "lost"]
 
 _games: dict[str, "GameState"] = {}
+
+
+class GameStoreFullError(Exception):
+    """Raised when the in-memory game store cannot accept more games."""
 
 
 def score_guess(secret: str, guess: str) -> list[Feedback]:
@@ -110,9 +120,16 @@ class GameState:
     secret_timeline: list[dict] = field(default_factory=list)
     practice_mode: bool = False
     forced_mutations: list[str] = field(default_factory=list)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def touch(self) -> None:
+        """Record last access time (for TTL pruning)."""
+        self.updated_at = datetime.now(timezone.utc)
 
     def apply_guess(self, guess: str) -> dict:
         """Process a guess and return the API response payload."""
+        self.touch()
         if self.status != "in_progress":
             return {
                 "status": "error",
@@ -200,13 +217,37 @@ class GameState:
         return response
 
 
+def prune_stale_games() -> int:
+    """Remove finished and abandoned games past TTL. Returns count removed."""
+    now = datetime.now(timezone.utc)
+    expired: list[str] = []
+    for game_id, game in _games.items():
+        age = (now - game.updated_at).total_seconds()
+        if game.status != "in_progress":
+            if age > FINISHED_GAME_TTL_SECONDS:
+                expired.append(game_id)
+        elif age > GAME_TTL_SECONDS:
+            expired.append(game_id)
+    for game_id in expired:
+        del _games[game_id]
+    return len(expired)
+
+
+def _register_game(game: GameState) -> None:
+    """Store a new game after pruning stale entries and checking capacity."""
+    prune_stale_games()
+    if len(_games) >= MAX_GAMES:
+        raise GameStoreFullError("Server busy, try again later")
+    _games[game.game_id] = game
+
+
 def create_game() -> GameState:
     """Create a new standard game with a random mutable secret."""
     game_id = str(uuid.uuid4())
     secret = pick_random_answer()
     game = GameState(game_id=game_id, secret=secret)
     game.secret_timeline.append({"after_attempt": 0, "secret": secret})
-    _games[game_id] = game
+    _register_game(game)
     return game
 
 
@@ -219,7 +260,7 @@ def create_practice_game() -> GameState:
         practice_mode=True,
     )
     game.secret_timeline.append({"after_attempt": 0, "secret": PRACTICE_ANSWER})
-    _games[game_id] = game
+    _register_game(game)
     return game
 
 
@@ -233,7 +274,7 @@ def create_test_game(secret: str, forced_mutations: list[str] | None = None) -> 
         forced_mutations=[word.lower() for word in (forced_mutations or [])],
     )
     game.secret_timeline.append({"after_attempt": 0, "secret": normalized_secret})
-    _games[game_id] = game
+    _register_game(game)
     return game
 
 

@@ -72,6 +72,24 @@ python app.py
 
 Open [http://localhost:5000](http://localhost:5000) in your browser.
 
+For production, copy `.env.example` to `.env`, set `WURDLE_DEBUG=false`, bind behind HTTPS (reverse proxy), and optionally set `WURDLE_CORS_ORIGINS` to your site origin. Use a WSGI server (e.g. gunicorn) instead of `app.run` for real deployments.
+
+## Security
+
+This app has **no user accounts** — games are anonymous and keyed by `game_id` only. Built-in protections:
+
+| Control | Behavior |
+|---------|----------|
+| **Input validation** | `game_id` must be a UUID; guesses must be exactly 5 letters |
+| **Rate limiting** | Per-IP limits on `/api/new-game` and `/api/guess` (disabled in tests) |
+| **Game store cap** | Max in-memory games with TTL cleanup for abandoned/finished games |
+| **Secret handling** | `secret_word` only returned on win or loss |
+| **Test API** | `/api/test/new-game` only when `WURDLE_TESTING=true` |
+| **Static files** | Only known frontend extensions; path traversal blocked |
+| **Headers** | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` in production |
+
+Tune limits via `.env` (see `.env.example`).
+
 ## Run tests
 
 ```bash
@@ -79,7 +97,7 @@ cd backend
 pytest
 ```
 
-Includes unit tests for game logic, API, word lists, practice chains, keyboard yellow clearing, and Playwright checks for grid scroll and keyboard feedback.
+Includes unit tests for game logic, API, word lists, practice chains, security hardening, keyboard yellow clearing, and Playwright checks for grid scroll and keyboard feedback.
 
 ## API
 
@@ -97,6 +115,7 @@ The secret is never returned until the game ends (win or loss). Guess responses 
 Wurdle/
   backend/
     app.py                    # Flask server + static frontend
+    security.py               # Validation, rate limits, static path checks
     game_logic.py             # Scoring, locking, mutation, game state
     practice_chain.py         # One-letter practice chain finder
     word_loader.py            # Dictionary loading & validation
