@@ -40,37 +40,58 @@ Light motion: tile **pop** when typing, **yellow fade** on keys when stale yello
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.10+ (3.14 works)
 - A modern web browser
 
-## Setup
+## Setup (one time)
 
-```bash
-# From the project root
+From the **project root** (`Wurdle/`), create a virtual environment and install dependencies:
+
+```powershell
+# Windows (PowerShell) — from project root
 python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 
 # For browser tests (first time only)
 python -m playwright install chromium
 ```
 
+```bash
+# macOS / Linux — from project root
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+If PowerShell blocks activation (`running scripts is disabled`), run once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
 ## Run
 
-Start the server (serves the API and frontend):
+**Activate the virtual environment first** — otherwise `python` is your system interpreter and you will see `ModuleNotFoundError: No module named 'flask'`.
 
-```bash
+```powershell
+# Windows (PowerShell) — from project root
+.\.venv\Scripts\Activate.ps1
 cd backend
 python app.py
 ```
 
-Open [http://localhost:5000](http://localhost:5000) in your browser.
+```bash
+# macOS / Linux — from project root
+source .venv/bin/activate
+cd backend
+python app.py
+```
+
+You should see Flask start on port 5000. Open [http://localhost:5000](http://localhost:5000) in your browser.
+
+**Quick check:** after activating, `python -m pip show flask` should print Flask 3.x. If it says “Package(s) not found”, you are not in the venv or dependencies were not installed.
 
 For production, copy `.env.example` to `.env`, set `WURDLE_DEBUG=false`, bind behind HTTPS (reverse proxy), and optionally set `WURDLE_CORS_ORIGINS` to your site origin. Use a WSGI server (e.g. gunicorn) instead of `app.run` for real deployments.
 
